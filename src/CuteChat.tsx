@@ -1,43 +1,93 @@
-import React, { useState, useCallback, useLayoutEffect } from 'react';
-import { GiftedChat, IMessage } from 'react-native-gifted-chat';
+/* eslint-disable react-native/no-inline-styles */
+import React, { useState, useLayoutEffect, useCallback } from 'react';
+import { GiftedChat } from 'react-native-gifted-chat';
+import {
+  collection,
+  addDoc,
+  orderBy,
+  query,
+  onSnapshot,
+} from '@firebase/firestore';
+import { database } from './config/firebase';
 
-interface CuteChatProps {
-  api: string;
-  auth: string;
+interface Message {
+  _id: string;
+  createdAt: Date | any;
+  text: string;
+  user: any; // Replace with the exact type of `user` if you have it
 }
 
-export function CuteChat({ api }: CuteChatProps) {
-  const [messages, setMessages] = useState<IMessage[]>([]);
+interface Props {
+  chatId: string;
+  user: User;
+}
+
+interface User {
+  id: string;
+  avatar: any;
+}
+
+export function CuteChat({ chatId, user }: Props) {
+  const [messages, setMessages] = useState<Message[]>([]);
 
   useLayoutEffect(() => {
-    // get messages from server here
-    console.log('api', api);
-    setMessages([
-      {
-        _id: 1,
-        text: 'Hello developer',
-        createdAt: new Date(),
-        user: {
-          _id: 2,
-          name: 'React Native',
-          avatar: 'https://placeimg.com/140/140/any',
-        },
-      },
-    ]);
-  }, [api]);
+    const collectionRef = collection(database, `chats/${chatId}/messages`);
+    console.log('collectionRef', collectionRef);
+    const q = query(collectionRef, orderBy('createdAt', 'desc'));
 
-  const onSend = useCallback((messages: IMessage[] = []) => {
-    setMessages((previousMessages) =>
-      GiftedChat.append(previousMessages, messages)
+    const unsubscribe = onSnapshot(
+      q,
+      (querySnapshot) => {
+        setMessages(
+          querySnapshot.docs.map((doc) => {
+            return {
+              _id: doc.data()._id,
+              createdAt: doc.data().createdAt.toDate(),
+              text: doc.data().content,
+              user: doc.data().user,
+            };
+          })
+        );
+      },
+      (error) => {
+        console.error('Error listening for document updates:', error);
+      }
     );
-  }, []);
+    return unsubscribe;
+  }, [chatId]);
+
+  const onSend = useCallback(
+    (newMessages = []) => {
+      setMessages((previousMessages) =>
+        GiftedChat.append(previousMessages, newMessages)
+      );
+
+      console.log('messages', newMessages);
+      const { _id, createdAt, text, user: sender } = newMessages[0];
+      addDoc(collection(database, `chats/${chatId}/messages`), {
+        _id,
+        createdAt,
+        content: text,
+        user: sender,
+      }).catch((error) => {
+        console.error('Error adding document:', error);
+      });
+    },
+    [chatId]
+  );
 
   return (
     <GiftedChat
       messages={messages}
-      onSend={(messages) => onSend(messages)}
+      showAvatarForEveryMessage={true}
+      showUserAvatar={true}
+      onSend={(newMessages) => onSend(newMessages)}
+      messagesContainerStyle={{
+        backgroundColor: '#fff',
+      }}
       user={{
-        _id: 1,
+        _id: user?.id,
+        avatar: user?.avatar,
       }}
     />
   );
