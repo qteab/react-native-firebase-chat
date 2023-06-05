@@ -37,7 +37,6 @@ export function CuteChat(props: CuteChatProps) {
 
   useLayoutEffect(() => {
     const collectionRef = collection(database, `chats/${chatId}/messages`);
-    console.log('collectionRef', collectionRef);
     const q = query(collectionRef, orderBy('createdAt', 'desc'));
 
     const unsubscribe = onSnapshot(
@@ -67,7 +66,6 @@ export function CuteChat(props: CuteChatProps) {
         GiftedChat.append(previousMessages, newMessages)
       );
 
-      console.log('messages', newMessages);
       const { _id, createdAt, text, user: sender } = newMessages[0];
       addDoc(collection(database, `chats/${chatId}/messages`), {
         _id,
