@@ -22,7 +22,7 @@ export default function App() {
   // Now that userId is part of the state, the user object will update when userId changes
   const user = { id: userId, avatar: 'https://i.pravatar.cc/300' };
 
-  const renderBubble = (props) => {
+  const renderBubble = (props: any) => {
     return (
       <Bubble
         {...props}
@@ -40,7 +40,7 @@ export default function App() {
     );
   };
 
-  const renderSend = (props) => {
+  const renderSend = (props: any) => {
     return (
       <Send {...props}>
         <View style={{ marginRight: 10, marginBottom: 5 }}>
