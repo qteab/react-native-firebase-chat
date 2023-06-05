@@ -1,6 +1,5 @@
-/* eslint-disable react-native/no-inline-styles */
 import React, { useState, useLayoutEffect, useCallback } from 'react';
-import { GiftedChat } from 'react-native-gifted-chat';
+import { GiftedChat, GiftedChatProps } from 'react-native-gifted-chat';
 import {
   collection,
   addDoc,
@@ -17,18 +16,24 @@ interface Message {
   user: any; // Replace with the exact type of `user` if you have it
 }
 
-interface Props {
+interface CustomCuteChatProps {
   chatId: string;
   user: User;
 }
 
 interface User {
   id: string;
+  username?: string;
   avatar: any;
 }
 
-export function CuteChat({ chatId, user }: Props) {
+type CuteChatProps = Omit<GiftedChatProps, 'messages' | 'user' | 'onSend'> &
+  CustomCuteChatProps;
+
+export function CuteChat(props: CuteChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
+  const chatId = props.chatId;
+  const user = props.user;
 
   useLayoutEffect(() => {
     const collectionRef = collection(database, `chats/${chatId}/messages`);
@@ -78,16 +83,12 @@ export function CuteChat({ chatId, user }: Props) {
 
   return (
     <GiftedChat
+      {...props}
       messages={messages}
-      showAvatarForEveryMessage={true}
-      showUserAvatar={true}
       onSend={(newMessages) => onSend(newMessages)}
-      messagesContainerStyle={{
-        backgroundColor: '#fff',
-      }}
       user={{
-        _id: user?.id,
-        avatar: user?.avatar,
+        _id: user.id,
+        avatar: user.avatar,
       }}
     />
   );
