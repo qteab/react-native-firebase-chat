@@ -20,7 +20,11 @@ export default function App() {
   }, []); // Empty dependency array, so this runs once when the component mounts
 
   // Now that userId is part of the state, the user object will update when userId changes
-  const user = { id: userId, avatar: 'https://i.pravatar.cc/300' };
+  const user = {
+    id: userId,
+    name: 'Test Osteron',
+    avatar: 'https://i.pravatar.cc/300',
+  };
 
   const renderBubble = (props: any) => {
     return (

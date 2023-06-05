@@ -24,6 +24,7 @@ interface CustomCuteChatProps {
 interface User {
   id: string;
   username?: string;
+  name?: string;
   avatar: any;
 }
 
@@ -39,16 +40,17 @@ export function CuteChat(props: CuteChatProps) {
     const collectionRef = collection(database, `chats/${chatId}/messages`);
     const q = query(collectionRef, orderBy('createdAt', 'desc'));
 
+    // Handle incoming messages
     const unsubscribe = onSnapshot(
       q,
       (querySnapshot) => {
         setMessages(
           querySnapshot.docs.map((doc) => {
             return {
-              _id: doc.data()._id,
+              _id: doc.data().messageId,
               createdAt: doc.data().createdAt.toDate(),
               text: doc.data().content,
-              user: doc.data().user,
+              user: { _id: doc.data().senderId, ...doc.data().sender },
             };
           })
         );
@@ -60,18 +62,20 @@ export function CuteChat(props: CuteChatProps) {
     return unsubscribe;
   }, [chatId]);
 
+  // Handle outgoing messages
   const onSend = useCallback(
     (newMessages = []) => {
       setMessages((previousMessages) =>
         GiftedChat.append(previousMessages, newMessages)
       );
-
+      console.log('newMessages', newMessages);
       const { _id, createdAt, text, user: sender } = newMessages[0];
       addDoc(collection(database, `chats/${chatId}/messages`), {
-        _id,
+        messageId: _id,
         createdAt,
         content: text,
-        user: sender,
+        senderId: sender._id,
+        sender: { name: sender.name, avatar: sender.avatar },
       }).catch((error) => {
         console.error('Error adding document:', error);
       });
@@ -84,10 +88,7 @@ export function CuteChat(props: CuteChatProps) {
       {...props}
       messages={messages}
       onSend={(newMessages) => onSend(newMessages)}
-      user={{
-        _id: user.id,
-        avatar: user.avatar,
-      }}
+      user={{ _id: user.id, ...user }}
     />
   );
 }
