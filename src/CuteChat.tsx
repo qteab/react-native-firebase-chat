@@ -6,26 +6,40 @@ import {
   orderBy,
   query,
   onSnapshot,
+  Firestore,
+  getFirestore,
 } from '@firebase/firestore';
-import { database } from './config/firebase';
+import { initializeApp } from '@firebase/app';
 
 interface Message {
   _id: string;
   createdAt: Date | any;
   text: string;
-  user: any; // Replace with the exact type of `user` if you have it
+  user: any; // TODO: Replace with the exact type of `user`
 }
 
 interface CustomCuteChatProps {
   chatId: string;
   user: User;
+  database?: Firestore; // The Firestore database instance
+  auth?: any; // The Firestore auth instance
+  firebaseConfig: FirebaseConfig;
+}
+
+interface FirebaseConfig {
+  apiKey: string;
+  authDomain: string;
+  projectId: string;
+  storageBucket: string;
+  messagingSenderId: string;
+  appId: string;
 }
 
 interface User {
   id: string;
   username?: string;
   name?: string;
-  avatar: any;
+  avatar: string;
 }
 
 type CuteChatProps = Omit<GiftedChatProps, 'messages' | 'user' | 'onSend'> &
@@ -35,6 +49,10 @@ export function CuteChat(props: CuteChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const chatId = props.chatId;
   const user = props.user;
+  const firebaseConfig = props.firebaseConfig;
+
+  initializeApp(firebaseConfig);
+  const database = getFirestore();
 
   useLayoutEffect(() => {
     const collectionRef = collection(database, `chats/${chatId}/messages`);
@@ -60,7 +78,7 @@ export function CuteChat(props: CuteChatProps) {
       }
     );
     return unsubscribe;
-  }, [chatId]);
+  }, [chatId, database]);
 
   // Handle outgoing messages
   const onSend = useCallback(
@@ -68,7 +86,6 @@ export function CuteChat(props: CuteChatProps) {
       setMessages((previousMessages) =>
         GiftedChat.append(previousMessages, newMessages)
       );
-      console.log('newMessages', newMessages);
       const { _id, createdAt, text, user: sender } = newMessages[0];
       addDoc(collection(database, `chats/${chatId}/messages`), {
         messageId: _id,
@@ -80,7 +97,7 @@ export function CuteChat(props: CuteChatProps) {
         console.error('Error adding document:', error);
       });
     },
-    [chatId]
+    [chatId, database]
   );
 
   return (
