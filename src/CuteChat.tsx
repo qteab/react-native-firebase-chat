@@ -1,4 +1,4 @@
-import React, { useState, useLayoutEffect, useCallback } from 'react';
+import React, { useState, useLayoutEffect, useCallback, useMemo } from 'react';
 import { GiftedChat, GiftedChatProps } from 'react-native-gifted-chat';
 import {
   collection,
@@ -9,7 +9,7 @@ import {
   Firestore,
   getFirestore,
 } from '@firebase/firestore';
-import { initializeApp } from '@firebase/app';
+import { initializeApp, getApps, getApp } from '@firebase/app';
 
 interface Message {
   _id: string;
@@ -22,7 +22,7 @@ interface CustomCuteChatProps {
   chatId: string;
   user: User;
   database?: Firestore; // The Firestore database instance
-  auth?: any; // The Firestore auth instance
+  auth?: Firestore; // The Firestore auth instance
   firebaseConfig: FirebaseConfig;
 }
 
@@ -47,12 +47,13 @@ type CuteChatProps = Omit<GiftedChatProps, 'messages' | 'user' | 'onSend'> &
 
 export function CuteChat(props: CuteChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
-  const chatId = props.chatId;
-  const user = props.user;
-  const firebaseConfig = props.firebaseConfig;
+  const { chatId, user, firebaseConfig } = props;
+  const memoizedUser = useMemo(() => ({ _id: user.id, ...user }), [user]);
 
-  initializeApp(firebaseConfig);
-  const database = getFirestore();
+  if (!getApps().length) {
+    initializeApp(firebaseConfig);
+  }
+  const database = getFirestore(getApp());
 
   useLayoutEffect(() => {
     const collectionRef = collection(database, `chats/${chatId}/messages`);
@@ -63,12 +64,12 @@ export function CuteChat(props: CuteChatProps) {
       q,
       (querySnapshot) => {
         setMessages(
-          querySnapshot.docs.map((doc) => {
+          querySnapshot.docs.map((message) => {
             return {
-              _id: doc.data().messageId,
-              createdAt: doc.data().createdAt.toDate(),
-              text: doc.data().content,
-              user: { _id: doc.data().senderId, ...doc.data().sender },
+              _id: message.data().messageId,
+              createdAt: message.data().createdAt.toDate(),
+              text: message.data().content,
+              user: { _id: message.data().senderId, ...message.data().sender },
             };
           })
         );
@@ -105,7 +106,7 @@ export function CuteChat(props: CuteChatProps) {
       {...props}
       messages={messages}
       onSend={(newMessages) => onSend(newMessages)}
-      user={{ _id: user.id, ...user }}
+      user={memoizedUser}
     />
   );
 }
