@@ -1,13 +1,16 @@
-import React, { useState, useLayoutEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { GiftedChat, GiftedChatProps } from 'react-native-gifted-chat';
 import {
   collection,
   addDoc,
   orderBy,
   query,
-  onSnapshot,
   Firestore,
   getFirestore,
+  getDocs,
+  startAfter,
+  limit,
+  QueryDocumentSnapshot,
 } from '@firebase/firestore';
 import { initializeApp, getApps, getApp } from '@firebase/app';
 
@@ -47,6 +50,8 @@ type CuteChatProps = Omit<GiftedChatProps, 'messages' | 'user' | 'onSend'> &
 
 export function CuteChat(props: CuteChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [lastMessageDoc, setLastMessageDoc] =
+    useState<QueryDocumentSnapshot | null>(null);
   const { chatId, user, firebaseConfig } = props;
   const memoizedUser = useMemo(() => ({ _id: user.id, ...user }), [user]);
 
@@ -55,31 +60,69 @@ export function CuteChat(props: CuteChatProps) {
   }
   const database = getFirestore(getApp());
 
-  useLayoutEffect(() => {
-    const collectionRef = collection(database, `chats/${chatId}/messages`);
-    const q = query(collectionRef, orderBy('createdAt', 'desc'));
+  // Utility function to convert a Firestore document to a Gifted Chat message
+  const docToMessage = (doc: QueryDocumentSnapshot): Message => ({
+    _id: doc.data().messageId,
+    createdAt: doc.data().createdAt.toDate(),
+    text: doc.data().content,
+    user: { _id: doc.data().senderId, ...doc.data().sender },
+  });
 
-    // Handle incoming messages
-    const unsubscribe = onSnapshot(
-      q,
-      (querySnapshot) => {
-        setMessages(
-          querySnapshot.docs.map((message) => {
-            return {
-              _id: message.data().messageId,
-              createdAt: message.data().createdAt.toDate(),
-              text: message.data().content,
-              user: { _id: message.data().senderId, ...message.data().sender },
-            };
-          })
+  // Fetch initial messages
+  useEffect(() => {
+    const fetchMessages = async () => {
+      const collectionRef = collection(database, `chats/${chatId}/messages`);
+      const q = query(collectionRef, orderBy('createdAt', 'desc'), limit(20));
+
+      const querySnapshot = await getDocs(q);
+      const newMessages = querySnapshot.docs.map(docToMessage);
+
+      if (querySnapshot.docs.length > 0) {
+        setLastMessageDoc(
+          querySnapshot.docs[
+            querySnapshot.docs.length - 1
+          ] as QueryDocumentSnapshot
         );
-      },
-      (error) => {
-        console.error('Error listening for document updates:', error);
+      } else {
+        setLastMessageDoc(null);
       }
-    );
-    return unsubscribe;
+
+      setMessages(newMessages);
+    };
+
+    fetchMessages();
   }, [chatId, database]);
+
+  // Function to fetch more messages
+  const fetchMoreMessages = useCallback(async () => {
+    console.log('fetching more messages');
+    if (lastMessageDoc) {
+      const collectionRef = collection(database, `chats/${chatId}/messages`);
+      const q = query(
+        collectionRef,
+        orderBy('createdAt', 'desc'),
+        startAfter(lastMessageDoc),
+        limit(20)
+      );
+
+      const querySnapshot = await getDocs(q);
+      const newMessages = querySnapshot.docs.map(docToMessage);
+
+      if (querySnapshot.docs.length > 0) {
+        setLastMessageDoc(
+          querySnapshot.docs[
+            querySnapshot.docs.length - 1
+          ] as QueryDocumentSnapshot
+        );
+      } else {
+        setLastMessageDoc(null);
+      }
+
+      setMessages((previousMessages) =>
+        GiftedChat.prepend(previousMessages, newMessages)
+      );
+    }
+  }, [chatId, database, lastMessageDoc]);
 
   // Handle outgoing messages
   const onSend = useCallback(
@@ -107,6 +150,11 @@ export function CuteChat(props: CuteChatProps) {
       messages={messages}
       onSend={(newMessages) => onSend(newMessages)}
       user={memoizedUser}
+      inverted={true}
+      listViewProps={{
+        onEndReached: fetchMoreMessages,
+        onEndReachedThreshold: 0.5,
+      }}
     />
   );
 }
