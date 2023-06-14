@@ -10,13 +10,7 @@ npm install @qteab/react-native-firebase-chat
 
 ## Usage
 
-```js
-import { multiply } from '@qteab/react-native-firebase-chat';
-
-// ...
-
-const result = await multiply(3, 7);
-```
+Add the google-services.json to example/android/app and GoogleService-Info.plist to example/ios. These you can get from firebase
 
 ## Contributing
 

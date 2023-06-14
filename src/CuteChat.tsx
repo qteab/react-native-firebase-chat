@@ -1,32 +1,14 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { GiftedChat, GiftedChatProps } from 'react-native-gifted-chat';
-import {
-  collection,
-  addDoc,
-  orderBy,
-  query,
-  Firestore,
-  getFirestore,
-  getDocs,
-  startAfter,
-  limit,
-  QueryDocumentSnapshot,
-} from '@firebase/firestore';
-import { initializeApp, getApps, getApp } from '@firebase/app';
-
-interface Message {
-  _id: string;
-  createdAt: Date | any;
-  text: string;
-  user: any; // TODO: Replace with the exact type of `user`
-}
+import firestore, {
+  FirebaseFirestoreTypes as FirebaseFirestore,
+} from '@react-native-firebase/firestore';
+import type { IMessage } from 'react-native-gifted-chat';
 
 interface CustomCuteChatProps {
   chatId: string;
   user: User;
-  database?: Firestore; // The Firestore database instance
-  auth?: Firestore; // The Firestore auth instance
-  firebaseConfig: FirebaseConfig;
+  firebaseConfig?: FirebaseConfig;
 }
 
 interface FirebaseConfig {
@@ -49,100 +31,89 @@ type CuteChatProps = Omit<GiftedChatProps, 'messages' | 'user' | 'onSend'> &
   CustomCuteChatProps;
 
 export function CuteChat(props: CuteChatProps) {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<IMessage[]>([]);
   const [lastMessageDoc, setLastMessageDoc] =
-    useState<QueryDocumentSnapshot | null>(null);
-  const { chatId, user, firebaseConfig } = props;
+    useState<FirebaseFirestore.DocumentSnapshot | null>(null);
+  const { chatId, user } = props;
   const memoizedUser = useMemo(() => ({ _id: user.id, ...user }), [user]);
 
-  if (!getApps().length) {
-    initializeApp(firebaseConfig);
-  }
-  const database = getFirestore(getApp());
-
   // Utility function to convert a Firestore document to a Gifted Chat message
-  const docToMessage = (doc: QueryDocumentSnapshot): Message => ({
-    _id: doc.data().messageId,
+  const docToMessage = (doc: any): IMessage => ({
+    _id: doc.id,
     createdAt: doc.data().createdAt.toDate(),
     text: doc.data().content,
-    user: { _id: doc.data().senderId, ...doc.data().sender },
+    user: doc.data().sender,
   });
 
   // Fetch initial messages
   useEffect(() => {
-    const fetchMessages = async () => {
-      const collectionRef = collection(database, `chats/${chatId}/messages`);
-      const q = query(collectionRef, orderBy('createdAt', 'desc'), limit(20));
+    const fetchInitialMessages = async () => {
+      const messagesRef = firestore().collection(`chats/${chatId}/messages`);
+      const snapshot = await messagesRef
+        .orderBy('createdAt', 'desc')
+        .limit(20)
+        .get();
 
-      const querySnapshot = await getDocs(q);
-      const newMessages = querySnapshot.docs.map(docToMessage);
-
-      if (querySnapshot.docs.length > 0) {
+      if (!snapshot.empty) {
         setLastMessageDoc(
-          querySnapshot.docs[
-            querySnapshot.docs.length - 1
-          ] as QueryDocumentSnapshot
+          snapshot.docs[
+            snapshot.docs.length - 1
+          ] as FirebaseFirestore.DocumentSnapshot
         );
-      } else {
-        setLastMessageDoc(null);
-      }
 
-      setMessages(newMessages);
+        const newMessages = snapshot.docs.map(docToMessage);
+        setMessages(newMessages);
+      }
     };
 
-    fetchMessages();
-  }, [chatId, database]);
-
-  // Function to fetch more messages
-  const fetchMoreMessages = useCallback(async () => {
-    console.log('fetching more messages');
-    if (lastMessageDoc) {
-      const collectionRef = collection(database, `chats/${chatId}/messages`);
-      const q = query(
-        collectionRef,
-        orderBy('createdAt', 'desc'),
-        startAfter(lastMessageDoc),
-        limit(20)
-      );
-
-      const querySnapshot = await getDocs(q);
-      const newMessages = querySnapshot.docs.map(docToMessage);
-
-      if (querySnapshot.docs.length > 0) {
-        setLastMessageDoc(
-          querySnapshot.docs[
-            querySnapshot.docs.length - 1
-          ] as QueryDocumentSnapshot
-        );
-      } else {
-        setLastMessageDoc(null);
-      }
-
-      setMessages((previousMessages) =>
-        GiftedChat.prepend(previousMessages, newMessages)
-      );
-    }
-  }, [chatId, database, lastMessageDoc]);
+    fetchInitialMessages();
+  }, [chatId]);
 
   // Handle outgoing messages
-  const onSend = useCallback(
-    (newMessages = []) => {
-      setMessages((previousMessages) =>
-        GiftedChat.append(previousMessages, newMessages)
-      );
+  const onSend = (newMessages: IMessage[] = []) => {
+    setMessages((previousMessages: IMessage[]) =>
+      GiftedChat.append(previousMessages, newMessages)
+    );
+    if (newMessages[0]) {
       const { _id, createdAt, text, user: sender } = newMessages[0];
-      addDoc(collection(database, `chats/${chatId}/messages`), {
-        messageId: _id,
-        createdAt,
-        content: text,
-        senderId: sender._id,
-        sender: { name: sender.name, avatar: sender.avatar },
-      }).catch((error) => {
-        console.error('Error adding document:', error);
-      });
-    },
-    [chatId, database]
-  );
+      firestore()
+        .collection(`chats/${chatId}/messages`)
+        .add({
+          messageId: _id,
+          createdAt,
+          content: text,
+          senderId: sender._id,
+          sender: { name: sender.name, avatar: sender.avatar },
+        })
+        .catch((error) => {
+          console.error('Error adding document:', error);
+        });
+    }
+  };
+
+  const fetchMoreMessages = useCallback(async () => {
+    try {
+      const messagesRef = firestore().collection(`chats/${chatId}/messages`);
+      const next = await messagesRef
+        .orderBy('createdAt', 'desc')
+        .startAfter(lastMessageDoc)
+        .limit(20)
+        .get();
+
+      if (!next.empty) {
+        setLastMessageDoc(
+          next.docs[next.docs.length - 1] as FirebaseFirestore.DocumentSnapshot
+        );
+
+        const newMessages = next.docs.map(docToMessage);
+        setMessages((previousMessages) =>
+          GiftedChat.prepend(previousMessages, newMessages)
+        );
+      }
+    } catch (error) {
+      console.error('Error fetching more messages: ', error);
+    }
+  }, [chatId, lastMessageDoc]);
 
   return (
     <GiftedChat

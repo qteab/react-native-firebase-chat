@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { CuteChat, Send, Bubble } from '@qteab/react-native-firebase-chat';
-import { Button, View } from 'react-native';
-import Constants from 'expo-constants';
+import React, {useEffect, useState} from 'react';
+import {CuteChat, Send, Bubble} from '@qteab/react-native-firebase-chat';
+import {Button, View} from 'react-native';
 
 export default function App() {
   const chatId = '8an3O9LKFgb9q7svhr1z';
@@ -13,15 +12,6 @@ export default function App() {
       Math.random().toString(36).substring(2, 15) +
       Math.random().toString(36).substring(2, 15)
     );
-  };
-
-  const firebaseConfig = {
-    apiKey: Constants.manifest?.extra?.apiKey,
-    authDomain: Constants.manifest?.extra?.authDomain,
-    projectId: Constants.manifest?.extra?.projectId,
-    storageBucket: Constants.manifest?.extra?.storageBucket,
-    messagingSenderId: Constants.manifest?.extra?.messagingSenderId,
-    appId: Constants.manifest?.extra?.appId,
   };
 
   useEffect(() => {
@@ -57,12 +47,12 @@ export default function App() {
   const renderSend = (props: any) => {
     return (
       <Send {...props}>
-        <View style={{ marginRight: 10, marginBottom: 5 }}>
+        <View style={{marginRight: 10, marginBottom: 5}}>
           <Button
             title="Send"
             color="orange"
             onPress={() => {
-              props.onSend({ text: props.text.trim() }, true);
+              props.onSend({text: props.text.trim()}, true);
             }}
           />
         </View>
@@ -73,7 +63,6 @@ export default function App() {
     <CuteChat
       chatId={chatId}
       user={user}
-      firebaseConfig={firebaseConfig}
       showUserAvatar={false}
       renderSend={renderSend}
       renderBubble={renderBubble}
