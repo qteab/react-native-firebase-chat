@@ -1,27 +1,36 @@
 import React, {useEffect, useState} from 'react';
 import {CuteChat, Send, Bubble} from '@qteab/react-native-firebase-chat';
-import {Button, View} from 'react-native';
+import {Button, Platform, View} from 'react-native';
 
 export default function App() {
-  const chatId = '8an3O9LKFgb9q7svhr1z';
+  const chatId = 'xgW3FUl5WxbSjbh24PTd';
   const [userId, setUserId] = useState(''); // Initialize user ID as an empty string
 
   // Function to generate a random ID
-  const generateRandomId = () => {
-    return (
-      Math.random().toString(36).substring(2, 15) +
-      Math.random().toString(36).substring(2, 15)
-    );
-  };
+  function generateRandomId() {
+    const ids = ['example_user_id', 'example_user_id2', 'example_user_id3'];
+    const randomIndex = Math.floor(Math.random() * ids.length);
+    return ids[randomIndex];
+  }
 
   useEffect(() => {
-    const newUserId = generateRandomId(); // Generate a random ID
+    let newUserId = '';
+
+    // Check the platform and assign the userId accordingly
+    if (Platform.OS === 'ios') {
+      newUserId = 'example_user_id';
+    } else if (Platform.OS === 'android') {
+      newUserId = 'example_user_id2';
+    } else {
+      newUserId = generateRandomId(); // Default case, generate a random ID
+    }
+
     setUserId(newUserId); // Set the user ID in the state
   }, []); // Empty dependency array, so this runs once when the component mounts
 
   // Now that userId is part of the state, the user object will update when userId changes
   const user = {
-    id: userId,
+    _id: userId,
     name: 'Test Osteron',
     avatar: 'https://i.pravatar.cc/300',
   };
