@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo, useLayoutEffect } from 'react';
 import { GiftedChat, GiftedChatProps } from 'react-native-gifted-chat';
 import firestore, {
   FirebaseFirestoreTypes as FirebaseFirestore,
+  firebase,
 } from '@react-native-firebase/firestore';
 import type { IMessage } from 'react-native-gifted-chat';
 import { Alert } from 'react-native';
@@ -39,23 +40,52 @@ export function CuteChat(props: CuteChatProps) {
   const memoizedUser = useMemo(() => ({ _id: user.id, ...user }), [user]);
 
   // Utility function to convert a Firestore document to a Gifted Chat message
-  const docToMessage = (doc: any): IMessage => ({
-    _id: doc.id,
-    createdAt: doc.data().createdAt.toDate(),
-    text: doc.data().content,
-    user: doc.data().sender,
-  });
+  const docToMessage = async (
+    doc: FirebaseFirestore.DocumentSnapshot
+  ): Promise<IMessage> => {
+    const data = doc.data();
+
+    if (!data) {
+      throw new Error('Document data is undefined');
+    }
+
+    // Fetch user data from reference
+    const senderRef = data.senderRef;
+    if (
+      !senderRef ||
+      typeof senderRef._documentPath !== 'object' ||
+      !Array.isArray(senderRef._documentPath._parts)
+    ) {
+      throw new Error('Invalid or missing senderRef in document');
+    }
+
+    // Create a new DocumentReference using the path from the existing DocumentReference
+    const senderPath = senderRef._documentPath._parts.join('/');
+    const senderDoc = firestore().doc(senderPath);
+    const senderData = await senderDoc.get();
+    const sender = senderData.data();
+
+    if (!sender) {
+      throw new Error('Sender data is undefined');
+    }
+
+    return {
+      _id: doc.id,
+      createdAt: new Date(data.createdAt),
+      text: data.content,
+      user: { _id: data.senderId, ...sender },
+    };
+  };
 
   // Fetch initial messages
   useLayoutEffect(() => {
     const messagesRef = firestore().collection(`chats/${chatId}/messages`);
 
-    // Listen for real-time updates
     const unsubscribe = messagesRef
       .orderBy('createdAt', 'desc')
       .limit(20)
       .onSnapshot(
-        (snapshot) => {
+        async (snapshot) => {
           if (!snapshot.empty) {
             setLastMessageDoc(
               snapshot.docs[
@@ -63,7 +93,8 @@ export function CuteChat(props: CuteChatProps) {
               ] as FirebaseFirestore.DocumentSnapshot
             );
 
-            const newMessages = snapshot.docs.map(docToMessage);
+            const newMessagesPromises = snapshot.docs.map(docToMessage);
+            const newMessages = await Promise.all(newMessagesPromises);
             setMessages(newMessages);
           }
         },
@@ -75,7 +106,7 @@ export function CuteChat(props: CuteChatProps) {
   }, [chatId]);
 
   // Handle outgoing messages
-  const onSend = (newMessages: IMessage[] = []) => {
+  const onSend = async (newMessages: IMessage[] = []) => {
     setMessages((previousMessages: IMessage[]) =>
       GiftedChat.append(previousMessages, newMessages)
     );
@@ -89,14 +120,25 @@ export function CuteChat(props: CuteChatProps) {
         return;
       }
 
+      // Ensure createdAt is a Date instance
+      if (!(createdAt instanceof Date)) {
+        console.error('createdAt is not a Date instance:', newMessages[0]);
+        return;
+      }
+
+      const senderRef = firestore().doc(`users/${sender._id}`);
+      const createdAtIso = createdAt.toISOString();
+
       firestore()
         .collection(`chats/${chatId}/messages`)
         .add({
           messageId: _id,
-          createdAt,
+          createdAt: createdAtIso,
+          updatedAt: createdAtIso,
           content: text,
           senderId: sender._id,
-          sender: { name: sender.name, avatar: sender.avatar },
+          senderRef,
+          readByIds: firebase.firestore.FieldValue.arrayUnion(senderRef),
         })
         .catch((error) => {
           console.error('Error adding document:', error);
@@ -122,7 +164,8 @@ export function CuteChat(props: CuteChatProps) {
           next.docs[next.docs.length - 1] as FirebaseFirestore.DocumentSnapshot
         );
 
-        const newMessages = next.docs.map(docToMessage);
+        const newMessagesPromises = next.docs.map(docToMessage);
+        const newMessages = await Promise.all(newMessagesPromises);
         setMessages((previousMessages) =>
           GiftedChat.prepend(previousMessages, newMessages)
         );
