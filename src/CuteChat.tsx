@@ -107,10 +107,6 @@ export function CuteChat(props: CuteChatProps) {
 
   // Handle outgoing messages
   const onSend = async (newMessages: IMessage[] = []) => {
-    setMessages((previousMessages: IMessage[]) =>
-      GiftedChat.append(previousMessages, newMessages)
-    );
-
     if (newMessages[0]) {
       const { _id, createdAt, text, user: sender } = newMessages[0];
 
@@ -128,25 +124,33 @@ export function CuteChat(props: CuteChatProps) {
 
       const senderRef = firestore().doc(`users/${sender._id}`);
       const createdAtIso = createdAt.toISOString();
+      const updatedAtIso = new Date().toISOString(); // current time
 
-      firestore()
-        .collection(`chats/${chatId}/messages`)
-        .add({
-          messageId: _id,
-          createdAt: createdAtIso,
-          updatedAt: createdAtIso,
-          content: text,
-          senderId: sender._id,
-          senderRef,
-          readByIds: firebase.firestore.FieldValue.arrayUnion(senderRef),
-        })
-        .catch((error) => {
-          console.error('Error adding document:', error);
-          Alert.alert('Error', 'Could not send message. Try again.', [
-            { text: 'Retry', onPress: () => onSend(newMessages) },
-            { text: 'Cancel' },
-          ]);
+      try {
+        const messageRef = await firestore()
+          .collection(`chats/${chatId}/messages`)
+          .add({
+            messageId: _id,
+            createdAt: createdAtIso,
+            updatedAt: updatedAtIso,
+            content: text,
+            senderId: sender._id,
+            senderRef,
+            readByIds: firebase.firestore.FieldValue.arrayUnion(senderRef),
+          });
+
+        // Update lastMessage field in the chat document
+        await firestore().doc(`chats/${chatId}`).update({
+          lastMessage: messageRef,
+          updatedAt: updatedAtIso,
         });
+      } catch (error) {
+        console.error('Error adding document:', error);
+        Alert.alert('Error', 'Could not send message. Try again.', [
+          { text: 'Retry', onPress: () => onSend(newMessages) },
+          { text: 'Cancel' },
+        ]);
+      }
     }
   };
 
