@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useLayoutEffect } from 'react';
 import { GiftedChat, GiftedChatProps } from 'react-native-gifted-chat';
 import firestore, {
   FirebaseFirestoreTypes as FirebaseFirestore,
@@ -46,27 +46,31 @@ export function CuteChat(props: CuteChatProps) {
   });
 
   // Fetch initial messages
-  useEffect(() => {
-    const fetchInitialMessages = async () => {
-      const messagesRef = firestore().collection(`chats/${chatId}/messages`);
-      const snapshot = await messagesRef
-        .orderBy('createdAt', 'desc')
-        .limit(20)
-        .get();
+  useLayoutEffect(() => {
+    const messagesRef = firestore().collection(`chats/${chatId}/messages`);
 
-      if (!snapshot.empty) {
-        setLastMessageDoc(
-          snapshot.docs[
-            snapshot.docs.length - 1
-          ] as FirebaseFirestore.DocumentSnapshot
-        );
+    // Listen for real-time updates
+    const unsubscribe = messagesRef
+      .orderBy('createdAt', 'desc')
+      .limit(20)
+      .onSnapshot(
+        (snapshot) => {
+          if (!snapshot.empty) {
+            setLastMessageDoc(
+              snapshot.docs[
+                snapshot.docs.length - 1
+              ] as FirebaseFirestore.DocumentSnapshot
+            );
 
-        const newMessages = snapshot.docs.map(docToMessage);
-        setMessages(newMessages);
-      }
-    };
+            const newMessages = snapshot.docs.map(docToMessage);
+            setMessages(newMessages);
+          }
+        },
+        (error) => console.error('Error fetching documents: ', error)
+      );
 
-    fetchInitialMessages();
+    // Clean up function
+    return () => unsubscribe();
   }, [chatId]);
 
   // Handle outgoing messages
