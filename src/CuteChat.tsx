@@ -4,6 +4,7 @@ import firestore, {
   FirebaseFirestoreTypes as FirebaseFirestore,
 } from '@react-native-firebase/firestore';
 import type { IMessage } from 'react-native-gifted-chat';
+import { Alert } from 'react-native';
 
 interface CustomCuteChatProps {
   chatId: string;
@@ -78,8 +79,16 @@ export function CuteChat(props: CuteChatProps) {
     setMessages((previousMessages: IMessage[]) =>
       GiftedChat.append(previousMessages, newMessages)
     );
+
     if (newMessages[0]) {
       const { _id, createdAt, text, user: sender } = newMessages[0];
+
+      // Simple data validation
+      if (!_id || !createdAt || !text || !sender || !sender._id) {
+        console.error('Missing fields in message:', newMessages[0]);
+        return;
+      }
+
       firestore()
         .collection(`chats/${chatId}/messages`)
         .add({
@@ -91,6 +100,10 @@ export function CuteChat(props: CuteChatProps) {
         })
         .catch((error) => {
           console.error('Error adding document:', error);
+          Alert.alert('Error', 'Could not send message. Try again.', [
+            { text: 'Retry', onPress: () => onSend(newMessages) },
+            { text: 'Cancel' },
+          ]);
         });
     }
   };
