@@ -1,3 +1,4 @@
+/* eslint-disable react-native/no-inline-styles */
 import React, {useEffect, useState} from 'react';
 import {CuteChat, Send, Bubble} from '@qteab/react-native-firebase-chat';
 import {Button, Platform, TouchableOpacity, View} from 'react-native';
