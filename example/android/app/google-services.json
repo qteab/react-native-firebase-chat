@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "1020706261525",
+    "project_id": "qte-firebase-chat",
+    "storage_bucket": "qte-firebase-chat.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1020706261525:android:b19c5b99980b0dc3489c1c",
+        "android_client_info": {
+          "package_name": "se.qte.firebasechat"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1020706261525-4qcr8rd0lc0s0vjasps8ne3bjn57ld2m.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAdhJY-yOHAstDSwPlBCDE5C_YjHf6YMBY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1020706261525-4qcr8rd0lc0s0vjasps8ne3bjn57ld2m.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1020706261525-46nnma0lj76451bvs8jt8fc8cb1pope5.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "se.qte.firebasechat"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

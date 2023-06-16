@@ -64,6 +64,7 @@ export function CuteChat(props: CuteChatProps) {
       createdAt: new Date(data.createdAt),
       text: data.content,
       user: { _id: data.senderId, ...sender },
+      image: data.image,
     };
   };
 
@@ -98,10 +99,10 @@ export function CuteChat(props: CuteChatProps) {
   // Handle outgoing messages
   const onSend = async (newMessages: IMessage[] = []) => {
     if (newMessages[0]) {
-      const { _id, createdAt, text, user: sender } = newMessages[0];
+      const { _id, createdAt, text, user: sender, image } = newMessages[0];
 
       // Simple data validation
-      if (!_id || !createdAt || !text || !sender || !sender._id) {
+      if (!_id || !createdAt || !(text || image) || !sender || !sender._id) {
         console.error('Missing fields in message:', newMessages[0]);
         return;
       }
@@ -116,18 +117,29 @@ export function CuteChat(props: CuteChatProps) {
       const createdAtIso = createdAt.toISOString();
       const updatedAtIso = new Date().toISOString(); // current time
 
+      const messageData: any = {
+        messageId: _id,
+        createdAt: createdAtIso,
+        updatedAt: updatedAtIso,
+        senderId: sender._id,
+        senderRef,
+        readByIds: firebase.firestore.FieldValue.arrayUnion(senderRef),
+      };
+
+      // only include the text field if it's not undefined
+      if (text) {
+        messageData.content = text;
+      }
+
+      // only include the image field if it's not undefined
+      if (image) {
+        messageData.image = image;
+      }
+
       try {
         const messageRef = await firestore()
           .collection(`chats/${chatId}/messages`)
-          .add({
-            messageId: _id,
-            createdAt: createdAtIso,
-            updatedAt: updatedAtIso,
-            content: text,
-            senderId: sender._id,
-            senderRef,
-            readByIds: firebase.firestore.FieldValue.arrayUnion(senderRef),
-          });
+          .add(messageData);
 
         // Update lastMessage field in the chat document
         await firestore().doc(`chats/${chatId}`).update({
