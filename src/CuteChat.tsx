@@ -76,7 +76,7 @@ export function CuteChat(props: CuteChatProps) {
       .orderBy('createdAt', 'desc')
       .limit(20)
       .onSnapshot(
-        async (snapshot) => {
+        async (snapshot: FirebaseFirestore.DocumentSnapshot) => {
           if (!snapshot.empty) {
             setLastMessageDoc(
               snapshot.docs[
@@ -89,7 +89,7 @@ export function CuteChat(props: CuteChatProps) {
             setMessages(newMessages);
           }
         },
-        (error) => console.error('Error fetching documents: ', error)
+        (error: Error) => console.error('Error fetching documents: ', error)
       );
 
     // Clean up function
