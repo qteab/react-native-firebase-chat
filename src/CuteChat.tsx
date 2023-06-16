@@ -10,16 +10,6 @@ import { Alert } from 'react-native';
 interface CustomCuteChatProps {
   chatId: string;
   user: User;
-  firebaseConfig?: FirebaseConfig;
-}
-
-interface FirebaseConfig {
-  apiKey: string;
-  authDomain: string;
-  projectId: string;
-  storageBucket: string;
-  messagingSenderId: string;
-  appId: string;
 }
 
 interface User {
