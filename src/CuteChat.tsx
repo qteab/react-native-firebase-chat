@@ -25,13 +25,13 @@ type CuteChatProps = Omit<GiftedChatProps, 'messages' | 'user' | 'onSend'> &
 export function CuteChat(props: CuteChatProps) {
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [lastMessageDoc, setLastMessageDoc] =
-    useState<FirebaseFirestore.DocumentSnapshot | null>(null);
+    useState<FirebaseFirestore.QuerySnapshot | null>(null);
   const { chatId, user } = props;
   const memoizedUser = useMemo(() => ({ _id: user.id, ...user }), [user]);
 
   // Utility function to convert a Firestore document to a Gifted Chat message
   const docToMessage = async (
-    doc: FirebaseFirestore.DocumentSnapshot
+    doc: FirebaseFirestore.QuerySnapshot
   ): Promise<IMessage> => {
     const data = doc.data();
 
@@ -76,7 +76,7 @@ export function CuteChat(props: CuteChatProps) {
       .orderBy('createdAt', 'desc')
       .limit(20)
       .onSnapshot(
-        async (snapshot: FirebaseFirestore.DocumentSnapshot) => {
+        async (snapshot: FirebaseFirestore.QuerySnapshot) => {
           if (!snapshot.empty) {
             setLastMessageDoc(
               snapshot.docs[
