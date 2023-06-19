@@ -62,8 +62,10 @@ jobs:
           node-version: 16.x
       - name: Yarn install
         run: yarn install --frozen-lockfile
-      - name: Setup NPM Token
+      - name: Initialise the NPM config
         run: npm config set //registry.npmjs.org/:_authToken $NPM_TOKEN
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Release
         run: yarn release
         env:
