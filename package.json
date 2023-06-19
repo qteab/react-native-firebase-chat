@@ -70,7 +70,10 @@
     "react-native": "0.71.7",
     "react-native-builder-bob": "^0.20.0",
     "release-it": "^15.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "@react-native-firebase/app": "^18.0.0",
+    "@react-native-firebase/firestore": "^18.0.0",
+    "@react-native-firebase/storage": "^18.0.0"
   },
   "resolutions": {
     "@types/react": "17.0.21"
