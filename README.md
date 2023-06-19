@@ -10,12 +10,32 @@ npm install @qteab/react-native-firebase-chat
 
 ## Usage
 
-```js
-import { multiply } from '@qteab/react-native-firebase-chat';
+Add the google-services.json to example/android/app and GoogleService-Info.plist to example/ios. These you can get from firebase
 
-// ...
+## Firebase Data structure from @qte/nest-firebase-chat
 
-const result = await multiply(3, 7);
+```sh
+├── users
+│   └── userId
+│       ├── name (string)
+│       └── avatar (URL string)
+└── chats
+    └── chatId
+        ├── creatorId (string)
+        ├── creatorRef (reference to user document)
+        ├── memberIds (array of references to user documents)
+        ├── name (string)
+        ├── lastMessage (reference to message document)
+        ├── createdAt (ISO string)
+        ├── updatedAt (ISO string)
+        └── messages
+            └── messageId
+                ├── senderId (string)
+                ├── senderRef (reference to user document)
+                ├── content (string)
+                ├── readByIds (array of references to user documents)
+                ├── createdAt (ISO string)
+                └── updatedAt (ISO string)
 ```
 
 ## Contributing
