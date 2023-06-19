@@ -31,7 +31,7 @@ export function CuteChat(props: CuteChatProps) {
 
   // Utility function to convert a Firestore document to a Gifted Chat message
   const docToMessage = async (
-    doc: FirebaseFirestore.DocumentSnapshot
+    doc: FirebaseFirestore.QueryDocumentSnapshot
   ): Promise<IMessage> => {
     const data = doc.data();
 
@@ -76,12 +76,12 @@ export function CuteChat(props: CuteChatProps) {
       .orderBy('createdAt', 'desc')
       .limit(20)
       .onSnapshot(
-        async (snapshot: FirebaseFirestore.DocumentSnapshot) => {
+        async (snapshot: FirebaseFirestore.QuerySnapshot) => {
           if (!snapshot.empty) {
             setLastMessageDoc(
               snapshot.docs[
                 snapshot.docs.length - 1
-              ] as FirebaseFirestore.DocumentSnapshot
+              ] as FirebaseFirestore.QueryDocumentSnapshot
             );
 
             const newMessagesPromises = snapshot.docs.map(docToMessage);
@@ -167,7 +167,9 @@ export function CuteChat(props: CuteChatProps) {
 
       if (!next.empty) {
         setLastMessageDoc(
-          next.docs[next.docs.length - 1] as FirebaseFirestore.DocumentSnapshot
+          next.docs[
+            next.docs.length - 1
+          ] as FirebaseFirestore.QueryDocumentSnapshot
         );
 
         const newMessagesPromises = next.docs.map(docToMessage);
