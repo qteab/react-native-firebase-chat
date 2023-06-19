@@ -66,10 +66,10 @@ jobs:
         run: npm config set //registry.npmjs.org/:_authToken $NPM_TOKEN
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-      - name: Initialize Git user
+      - name: Initialise the Git config
         run: |
-            git config --global user.email "firebase-chat@qte.se"
-            git config --global user.name ">qte bot"
+          git config user.name "${GITHUB_ACTOR}"
+          git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
       - name: Release
         run: yarn release --ci
         env:
