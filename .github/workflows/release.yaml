@@ -69,7 +69,7 @@ jobs:
       - name: Initialize Git user
         run: |
             git config --global user.email "firebase-chat@qte.se"
-            git config --global user.name "QTE Bot"
+            git config --global user.name ">qte bot"
       - name: Release
         run: yarn release --ci
         env:
