@@ -10,6 +10,7 @@ import { Alert } from 'react-native';
 interface CustomCuteChatProps {
   chatId: string;
   user: User;
+  onSend?: (newMessages: IMessage[]) => void;
 }
 
 interface User {
@@ -187,7 +188,7 @@ export function CuteChat(props: CuteChatProps) {
     <GiftedChat
       {...props}
       messages={messages}
-      onSend={(newMessages) => onSend(newMessages)}
+      onSend={props.onSend || onSend}
       user={memoizedUser}
       inverted={true}
       listViewProps={{
