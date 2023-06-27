@@ -1,11 +1,11 @@
-# @qteab/react-native-firebase-chat
+# @qte/react-native-firebase-chat
 
 Firebase chats the qte way
 
 ## Installation
 
 ```sh
-npm install @qteab/react-native-firebase-chat
+npm install @qte/react-native-firebase-chat
 ```
 
 ## Usage
