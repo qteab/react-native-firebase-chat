@@ -42,31 +42,32 @@ export function CuteChat(props: CuteChatProps) {
 
     // Fetch user data from reference
     const senderRef = data.senderRef;
-    if (
-      !senderRef ||
-      typeof senderRef._documentPath !== 'object' ||
-      !Array.isArray(senderRef._documentPath._parts)
-    ) {
-      throw new Error('Invalid or missing senderRef in document');
+    if (senderRef) {
+      // Create a new DocumentReference using the path from the existing DocumentReference
+      const senderPath = senderRef._documentPath._parts.join('/');
+      const senderDoc = firestore().doc(senderPath);
+      const senderData = await senderDoc.get();
+      const sender = senderData.data();
+
+      if (!sender) {
+        throw new Error('Sender data is undefined');
+      }
+      return {
+        _id: doc.id,
+        createdAt: new Date(data.createdAt),
+        text: data.content,
+        user: { _id: data.senderId, ...sender },
+        image: data.image,
+      };
+    } else {
+      return {
+        _id: doc.id,
+        createdAt: new Date(data.createdAt),
+        text: data.content,
+        image: data.image,
+        system: true,
+      };
     }
-
-    // Create a new DocumentReference using the path from the existing DocumentReference
-    const senderPath = senderRef._documentPath._parts.join('/');
-    const senderDoc = firestore().doc(senderPath);
-    const senderData = await senderDoc.get();
-    const sender = senderData.data();
-
-    if (!sender) {
-      throw new Error('Sender data is undefined');
-    }
-
-    return {
-      _id: doc.id,
-      createdAt: new Date(data.createdAt),
-      text: data.content,
-      user: { _id: data.senderId, ...sender },
-      image: data.image,
-    };
   };
 
   // Fetch initial messages
