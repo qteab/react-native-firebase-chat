@@ -191,7 +191,7 @@ export function CuteChat(props: CuteChatProps) {
     } catch (error) {
       console.error('Error fetching more messages: ', error);
     }
-  }, [chatId, lastMessageDoc]);
+  }, [chatId, lastMessageDoc, docToMessage]);
 
   return (
     <GiftedChat
