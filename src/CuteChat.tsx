@@ -40,6 +40,13 @@ export function CuteChat(props: CuteChatProps) {
       throw new Error('Document data is undefined');
     }
 
+    const filesRef = firestore().collection(
+      `chats/${chatId}/messages/${doc.id}/files`
+    );
+    const files = await filesRef.get();
+
+    const image = files.docs[0]?.data().url;
+
     // Fetch user data from reference
     const senderRef = data.senderRef;
     if (senderRef) {
@@ -57,14 +64,14 @@ export function CuteChat(props: CuteChatProps) {
         createdAt: new Date(data.createdAt),
         text: data.content,
         user: { _id: data.senderId, ...sender },
-        image: data.image,
+        image: image,
       };
     } else {
       return {
         _id: doc.id,
         createdAt: new Date(data.createdAt),
         text: data.content,
-        image: data.image,
+        image: image,
         system: true,
       };
     }
