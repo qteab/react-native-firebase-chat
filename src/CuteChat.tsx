@@ -31,46 +31,54 @@ export function CuteChat(props: CuteChatProps) {
   const memoizedUser = useMemo(() => ({ _id: user.id, ...user }), [user]);
 
   // Utility function to convert a Firestore document to a Gifted Chat message
-  const docToMessage = async (
-    doc: FirebaseFirestore.QueryDocumentSnapshot
-  ): Promise<IMessage> => {
-    const data = doc.data();
+  const docToMessage = useCallback(
+    async (doc: FirebaseFirestore.QueryDocumentSnapshot): Promise<IMessage> => {
+      const data = doc.data();
 
-    if (!data) {
-      throw new Error('Document data is undefined');
-    }
-
-    // Fetch user data from reference
-    const senderRef = data.senderRef;
-    if (senderRef) {
-      // Create a new DocumentReference using the path from the existing DocumentReference
-      const senderPath = senderRef._documentPath._parts.join('/');
-      const senderDoc = firestore().doc(senderPath);
-      const senderData = await senderDoc.get();
-      const sender = senderData.data();
-
-      if (!sender) {
-        throw new Error('Sender data is undefined');
+      if (!data) {
+        throw new Error('Document data is undefined');
       }
-      return {
-        _id: doc.id,
-        createdAt: new Date(data.createdAt),
-        text: data.content,
-        user: { _id: data.senderId, ...sender },
-        image: data.image,
-        metadata: data.metadata,
-      };
-    } else {
-      return {
-        _id: doc.id,
-        createdAt: new Date(data.createdAt),
-        text: data.content,
-        image: data.image,
-        system: true,
-        metadata: data.metadata,
-      };
-    }
-  };
+
+      const filesRef = firestore().collection(
+        `chats/${chatId}/messages/${doc.id}/files`
+      );
+      const files = await filesRef.get();
+
+      const image = files.docs[0]?.data().url;
+
+      // Fetch user data from reference
+      const senderRef = data.senderRef;
+      if (senderRef) {
+        // Create a new DocumentReference using the path from the existing DocumentReference
+        const senderPath = senderRef._documentPath._parts.join('/');
+        const senderDoc = firestore().doc(senderPath);
+        const senderData = await senderDoc.get();
+        const sender = senderData.data();
+
+        if (!sender) {
+          throw new Error('Sender data is undefined');
+        }
+        return {
+          _id: doc.id,
+          createdAt: new Date(data.createdAt),
+          text: data.content,
+          user: { _id: data.senderId, ...sender },
+          image: image,
+          metadata: data.metadata,
+        };
+      } else {
+        return {
+          _id: doc.id,
+          createdAt: new Date(data.createdAt),
+          text: data.content,
+          image: image,
+          system: true,
+          metadata: data.metadata,
+        };
+      }
+    },
+    [chatId]
+  );
 
   // Fetch initial messages
   useLayoutEffect(() => {
@@ -98,7 +106,7 @@ export function CuteChat(props: CuteChatProps) {
 
     // Clean up function
     return () => unsubscribe();
-  }, [chatId]);
+  }, [chatId, docToMessage]);
 
   // Handle outgoing messages
   const onSend = async (newMessages: IMessage[] = []) => {
@@ -185,7 +193,7 @@ export function CuteChat(props: CuteChatProps) {
     } catch (error) {
       console.error('Error fetching more messages: ', error);
     }
-  }, [chatId, lastMessageDoc]);
+  }, [chatId, lastMessageDoc, docToMessage]);
 
   return (
     <GiftedChat
