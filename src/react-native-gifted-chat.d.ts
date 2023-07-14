@@ -15,5 +15,6 @@ declare module 'react-native-gifted-chat' {
     pending?: boolean;
     quickReplies?: QuickReplies;
     metadata?: Record<string, any>;
+    readByIds: string[];
   }
 }
