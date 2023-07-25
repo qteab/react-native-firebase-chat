@@ -105,6 +105,25 @@ export function CuteChat(props: CuteChatProps) {
 
         batch.commit();
       }
+
+      const chatRef = firestore().doc(`chats/${chatId}`);
+      const chatData = await chatRef.get();
+      const chat = chatData.data();
+
+      if (!chat) {
+        throw new Error('Chat data is undefined');
+      }
+
+      if (!chat.lastMessage.readByIds.includes(memoizedUser._id)) {
+        chatRef.update({
+          lastMessage: {
+            ...chat.lastMessage,
+            readByIds: firebase.firestore.FieldValue.arrayUnion(
+              memoizedUser._id
+            ),
+          },
+        });
+      }
     },
     [chatId, memoizedUser._id]
   );
