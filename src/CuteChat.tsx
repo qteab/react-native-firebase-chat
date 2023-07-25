@@ -64,6 +64,8 @@ export function CuteChat(props: CuteChatProps) {
           text: data.content,
           user: { _id: data.senderId, ...sender },
           image: image,
+          readByIds: data.readByIds,
+          metadata: data.metadata,
         };
       } else {
         return {
@@ -72,6 +74,8 @@ export function CuteChat(props: CuteChatProps) {
           text: data.content,
           image: image,
           system: true,
+          readByIds: data.readByIds,
+          metadata: data.metadata,
         };
       }
     },
