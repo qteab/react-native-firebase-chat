@@ -116,12 +116,9 @@ export function CuteChat(props: CuteChatProps) {
 
       if (!chat.lastMessage.readByIds.includes(memoizedUser._id)) {
         chatRef.update({
-          lastMessage: {
-            ...chat.lastMessage,
-            readByIds: firebase.firestore.FieldValue.arrayUnion(
-              memoizedUser._id
-            ),
-          },
+          'lastMessage.readByIds': firebase.firestore.FieldValue.arrayUnion(
+            memoizedUser._id
+          ),
         });
       }
     },
