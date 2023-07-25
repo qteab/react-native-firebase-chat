@@ -85,9 +85,7 @@ export function CuteChat(props: CuteChatProps) {
   const markMessagesAsRead = useCallback(
     async (newMessages: IMessage[]) => {
       const unreadMessages = newMessages.filter(
-        (message) =>
-          message.user._id !== memoizedUser._id &&
-          !message.readByIds.includes(memoizedUser._id)
+        (message) => !message.readByIds.includes(memoizedUser._id)
       );
 
       if (unreadMessages.length > 0) {
@@ -166,7 +164,7 @@ export function CuteChat(props: CuteChatProps) {
         updatedAt: updatedAtIso,
         senderId: sender._id,
         senderRef,
-        readByIds: firebase.firestore.FieldValue.arrayUnion(senderRef),
+        readByIds: firebase.firestore.FieldValue.arrayUnion(sender._id),
       };
 
       // only include the text field if it's not undefined
