@@ -82,6 +82,35 @@ export function CuteChat(props: CuteChatProps) {
     [chatId]
   );
 
+  const markMessagesAsRead = useCallback(
+    async (newMessages: IMessage[]) => {
+      const unreadMessages = newMessages.filter(
+        (message) =>
+          message.user._id !== memoizedUser._id &&
+          !message.readByIds.includes(memoizedUser._id)
+      );
+
+      if (unreadMessages.length > 0) {
+        const batch = firestore().batch();
+
+        unreadMessages.forEach((message) => {
+          const messageRef = firestore()
+            .collection(`chats/${chatId}/messages`)
+            .doc(message._id as string);
+
+          batch.update(messageRef, {
+            readByIds: firebase.firestore.FieldValue.arrayUnion(
+              memoizedUser._id
+            ),
+          });
+        });
+
+        batch.commit();
+      }
+    },
+    [chatId, memoizedUser._id]
+  );
+
   // Fetch initial messages
   useLayoutEffect(() => {
     const messagesRef = firestore().collection(`chats/${chatId}/messages`);
@@ -101,14 +130,14 @@ export function CuteChat(props: CuteChatProps) {
             const newMessagesPromises = snapshot.docs.map(docToMessage);
             const newMessages = await Promise.all(newMessagesPromises);
             setMessages(newMessages);
+            markMessagesAsRead(newMessages);
           }
         },
         (error: Error) => console.error('Error fetching documents: ', error)
       );
-
     // Clean up function
     return () => unsubscribe();
-  }, [chatId, docToMessage]);
+  }, [chatId, docToMessage, markMessagesAsRead]);
 
   // Handle outgoing messages
   const onSend = async (newMessages: IMessage[] = []) => {
@@ -191,11 +220,13 @@ export function CuteChat(props: CuteChatProps) {
         setMessages((previousMessages) =>
           GiftedChat.prepend(previousMessages, newMessages)
         );
+
+        markMessagesAsRead(newMessages);
       }
     } catch (error) {
       console.error('Error fetching more messages: ', error);
     }
-  }, [chatId, lastMessageDoc, docToMessage]);
+  }, [chatId, lastMessageDoc, docToMessage, markMessagesAsRead]);
 
   return (
     <GiftedChat
