@@ -11,6 +11,7 @@ interface CustomCuteChatProps {
   chatId: string;
   user: User;
   onSend?: (newMessages: IMessage[]) => void;
+  setIsLoading?: (isLoading: boolean) => void;
 }
 
 interface User {
@@ -29,6 +30,11 @@ export function CuteChat(props: CuteChatProps) {
     useState<FirebaseFirestore.DocumentSnapshot | null>(null);
   const { chatId, user } = props;
   const memoizedUser = useMemo(() => ({ _id: user.id, ...user }), [user]);
+
+  const setIsLoading = useMemo(
+    () => props.setIsLoading || (() => {}),
+    [props.setIsLoading]
+  );
 
   // Utility function to convert a Firestore document to a Gifted Chat message
   const docToMessage = useCallback(
@@ -127,6 +133,7 @@ export function CuteChat(props: CuteChatProps) {
 
   // Fetch initial messages
   useLayoutEffect(() => {
+    setIsLoading(true);
     const messagesRef = firestore().collection(`chats/${chatId}/messages`);
 
     const unsubscribe = messagesRef
@@ -144,6 +151,7 @@ export function CuteChat(props: CuteChatProps) {
             const newMessagesPromises = snapshot.docs.map(docToMessage);
             const newMessages = await Promise.all(newMessagesPromises);
             setMessages(newMessages);
+            setIsLoading(false);
             markMessagesAsRead(newMessages);
           }
         },
@@ -151,7 +159,7 @@ export function CuteChat(props: CuteChatProps) {
       );
     // Clean up function
     return () => unsubscribe();
-  }, [chatId, docToMessage, markMessagesAsRead]);
+  }, [chatId, docToMessage, markMessagesAsRead, setIsLoading]);
 
   // Handle outgoing messages
   const onSend = async (newMessages: IMessage[] = []) => {
@@ -214,6 +222,7 @@ export function CuteChat(props: CuteChatProps) {
   };
 
   const fetchMoreMessages = useCallback(async () => {
+    setIsLoading(true);
     try {
       const messagesRef = firestore().collection(`chats/${chatId}/messages`);
       const next = await messagesRef
@@ -240,7 +249,8 @@ export function CuteChat(props: CuteChatProps) {
     } catch (error) {
       console.error('Error fetching more messages: ', error);
     }
-  }, [chatId, lastMessageDoc, docToMessage, markMessagesAsRead]);
+    setIsLoading(false);
+  }, [chatId, lastMessageDoc, docToMessage, markMessagesAsRead, setIsLoading]);
 
   return (
     <GiftedChat
