@@ -30,6 +30,7 @@ export function CuteChat(props: CuteChatProps) {
     useState<FirebaseFirestore.DocumentSnapshot | null>(null);
   const { chatId, user } = props;
   const memoizedUser = useMemo(() => ({ _id: user.id, ...user }), [user]);
+  const [initializing, setInitializing] = useState(true);
 
   const setIsLoading = useMemo(
     () => props.setIsLoading || (() => {}),
@@ -45,25 +46,40 @@ export function CuteChat(props: CuteChatProps) {
         throw new Error('Document data is undefined');
       }
 
-      const filesRef = firestore().collection(
-        `chats/${chatId}/messages/${doc.id}/files`
-      );
-      const files = await filesRef.get();
+      const [files, sender] = await Promise.all([
+        new Promise<
+          | FirebaseFirestore.QueryDocumentSnapshot<FirebaseFirestore.DocumentData>[]
+          | undefined
+        >((resolve, reject) => {
+          firestore()
+            .collection(`chats/${chatId}/messages/${doc.id}/files`)
+            .onSnapshot((snapshot) => {
+              if (snapshot.empty) {
+                resolve(undefined);
+              } else {
+                resolve(snapshot.docs);
+              }
+            }, reject);
+        }),
+        new Promise<FirebaseFirestore.DocumentData | undefined>(
+          (resolve, reject) => {
+            firestore()
+              .doc(data.senderRef._documentPath._parts.join('/'))
+              .onSnapshot((snapshot) => {
+                if (!snapshot.exists) {
+                  resolve(undefined);
+                } else {
+                  resolve(snapshot.data());
+                }
+              }, reject);
+          }
+        ),
+      ]);
 
-      const image = files.docs[0]?.data().url;
+      const image = files?.[0]?.data().url;
 
       // Fetch user data from reference
-      const senderRef = data.senderRef;
-      if (senderRef) {
-        // Create a new DocumentReference using the path from the existing DocumentReference
-        const senderPath = senderRef._documentPath._parts.join('/');
-        const senderDoc = firestore().doc(senderPath);
-        const senderData = await senderDoc.get();
-        const sender = senderData.data();
-
-        if (!sender) {
-          throw new Error('Sender data is undefined');
-        }
+      if (sender) {
         return {
           _id: doc.id,
           createdAt: new Date(data.createdAt),
@@ -138,7 +154,7 @@ export function CuteChat(props: CuteChatProps) {
 
     const unsubscribe = messagesRef
       .orderBy('createdAt', 'desc')
-      .limit(20)
+      .limit(10)
       .onSnapshot(
         async (snapshot: FirebaseFirestore.QuerySnapshot) => {
           if (!snapshot.empty) {
@@ -150,8 +166,11 @@ export function CuteChat(props: CuteChatProps) {
 
             const newMessagesPromises = snapshot.docs.map(docToMessage);
             const newMessages = await Promise.all(newMessagesPromises);
+
             setMessages(newMessages);
             setIsLoading(false);
+            setInitializing(false);
+
             markMessagesAsRead(newMessages);
           }
         },
@@ -222,35 +241,46 @@ export function CuteChat(props: CuteChatProps) {
   };
 
   const fetchMoreMessages = useCallback(async () => {
+    if (initializing) {
+      return;
+    }
+
     setIsLoading(true);
     try {
       const messagesRef = firestore().collection(`chats/${chatId}/messages`);
-      const next = await messagesRef
+      messagesRef
         .orderBy('createdAt', 'desc')
         .startAfter(lastMessageDoc)
-        .limit(20)
-        .get();
+        .limit(10)
+        .onSnapshot(async (snapshot) => {
+          if (!snapshot.empty) {
+            setLastMessageDoc(
+              snapshot.docs[
+                snapshot.docs.length - 1
+              ] as FirebaseFirestore.QueryDocumentSnapshot
+            );
 
-      if (!next.empty) {
-        setLastMessageDoc(
-          next.docs[
-            next.docs.length - 1
-          ] as FirebaseFirestore.QueryDocumentSnapshot
-        );
+            const newMessagesPromises = snapshot.docs.map(docToMessage);
+            const newMessages = await Promise.all(newMessagesPromises);
+            setMessages((previousMessages) =>
+              GiftedChat.prepend(previousMessages, newMessages)
+            );
 
-        const newMessagesPromises = next.docs.map(docToMessage);
-        const newMessages = await Promise.all(newMessagesPromises);
-        setMessages((previousMessages) =>
-          GiftedChat.prepend(previousMessages, newMessages)
-        );
-
-        markMessagesAsRead(newMessages);
-      }
+            markMessagesAsRead(newMessages);
+            setIsLoading(false);
+          }
+        });
     } catch (error) {
       console.error('Error fetching more messages: ', error);
     }
-    setIsLoading(false);
-  }, [chatId, lastMessageDoc, docToMessage, markMessagesAsRead, setIsLoading]);
+  }, [
+    chatId,
+    lastMessageDoc,
+    docToMessage,
+    markMessagesAsRead,
+    setIsLoading,
+    initializing,
+  ]);
 
   return (
     <GiftedChat
