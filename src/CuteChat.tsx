@@ -154,7 +154,7 @@ export function CuteChat(props: CuteChatProps) {
 
     const unsubscribe = messagesRef
       .orderBy('createdAt', 'desc')
-      .limit(10)
+      .limit(20)
       .onSnapshot(
         async (snapshot: FirebaseFirestore.QuerySnapshot) => {
           if (!snapshot.empty) {
@@ -251,7 +251,7 @@ export function CuteChat(props: CuteChatProps) {
       messagesRef
         .orderBy('createdAt', 'desc')
         .startAfter(lastMessageDoc)
-        .limit(10)
+        .limit(20)
         .onSnapshot(async (snapshot) => {
           if (!snapshot.empty) {
             setLastMessageDoc(
@@ -271,7 +271,7 @@ export function CuteChat(props: CuteChatProps) {
                     (previousMessage) => previousMessage._id === newMessage._id
                   )
               );
-              return GiftedChat.append(previousMessages, newMessagesFiltered);
+              return GiftedChat.prepend(previousMessages, newMessagesFiltered);
             });
 
             markMessagesAsRead(newMessages);
