@@ -260,11 +260,19 @@ export function CuteChat(props: CuteChatProps) {
               ] as FirebaseFirestore.QueryDocumentSnapshot
             );
 
-            const newMessagesPromises = snapshot.docs.map(docToMessage);
-            const newMessages = await Promise.all(newMessagesPromises);
-            setMessages((previousMessages) =>
-              GiftedChat.prepend(previousMessages, newMessages)
+            const newMessages = await Promise.all(
+              snapshot.docs.map(docToMessage)
             );
+
+            setMessages((previousMessages) => {
+              const newMessagesFiltered = newMessages.filter(
+                (newMessage) =>
+                  !previousMessages.some(
+                    (previousMessage) => previousMessage._id === newMessage._id
+                  )
+              );
+              return GiftedChat.append(previousMessages, newMessagesFiltered);
+            });
 
             markMessagesAsRead(newMessages);
             setIsLoading(false);
