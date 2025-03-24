@@ -22,7 +22,7 @@ jobs:
       - name: Setup Node.js 16
         uses: actions/setup-node@v3
         with:
-          node-version: 16.x
+          node-version: 18.x
       - name: Yarn install
         run: yarn install --frozen-lockfile
       - name: Lint
@@ -40,7 +40,7 @@ jobs:
       - name: Setup Node.js 16
         uses: actions/setup-node@v3
         with:
-          node-version: 16.x
+          node-version: 18.x
       - name: Yarn install
         run: yarn install --frozen-lockfile
       - name: Test
@@ -59,7 +59,7 @@ jobs:
       - name: Setup Node.js 16
         uses: actions/setup-node@v3
         with:
-          node-version: 16.x
+          node-version: 18.x
       - name: Yarn install
         run: yarn install --frozen-lockfile
       - name: Initialise the NPM config
