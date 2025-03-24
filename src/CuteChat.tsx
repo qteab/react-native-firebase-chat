@@ -1,11 +1,11 @@
-import React, { useState, useCallback, useMemo, useLayoutEffect } from 'react';
-import { GiftedChat, GiftedChatProps } from 'react-native-gifted-chat';
 import firestore, {
   FirebaseFirestoreTypes as FirebaseFirestore,
   firebase,
 } from '@react-native-firebase/firestore';
-import type { IMessage } from 'react-native-gifted-chat';
+import React, { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
+import type { IMessage } from 'react-native-gifted-chat';
+import { GiftedChat, GiftedChatProps } from 'react-native-gifted-chat';
 
 interface CustomCuteChatProps {
   chatId: string;
@@ -157,6 +157,16 @@ export function CuteChat(props: CuteChatProps) {
       .limit(20)
       .onSnapshot(
         async (snapshot: FirebaseFirestore.QuerySnapshot) => {
+          if (snapshot.empty) {
+            setLastMessageDoc(null);
+
+            setMessages([]);
+            setIsLoading(false);
+            setInitializing(false);
+
+            markMessagesAsRead([]);
+          }
+
           if (!snapshot.empty) {
             setLastMessageDoc(
               snapshot.docs[
