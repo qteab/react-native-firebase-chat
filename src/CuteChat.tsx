@@ -2,8 +2,14 @@ import firestore, {
   FirebaseFirestoreTypes as FirebaseFirestore,
   firebase,
 } from '@react-native-firebase/firestore';
-import React, { useCallback, useLayoutEffect, useMemo, useState } from 'react';
-import { Alert } from 'react-native';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from 'react';
+import { Alert, NativeScrollEvent } from 'react-native';
 import type { IMessage } from 'react-native-gifted-chat';
 import { GiftedChat, GiftedChatProps } from 'react-native-gifted-chat';
 
@@ -24,6 +30,13 @@ interface User {
 type CuteChatProps = Omit<GiftedChatProps, 'messages' | 'user' | 'onSend'> &
   CustomCuteChatProps;
 
+type SnapshotChange = {
+  type: FirebaseFirestore.DocumentChangeType;
+  message: IMessage;
+};
+
+const messageBatch = 20;
+
 export function CuteChat(props: CuteChatProps) {
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [lastMessageDoc, setLastMessageDoc] =
@@ -31,6 +44,7 @@ export function CuteChat(props: CuteChatProps) {
   const { chatId, user } = props;
   const memoizedUser = useMemo(() => ({ _id: user.id, ...user }), [user]);
   const [initializing, setInitializing] = useState(true);
+  const startDate = useMemo(() => new Date(), []);
 
   const setIsLoading = useMemo(
     () => props.setIsLoading || (() => {}),
@@ -104,6 +118,62 @@ export function CuteChat(props: CuteChatProps) {
     [chatId]
   );
 
+  const prepareSnapshot = async (
+    snapshot: FirebaseFirestore.QuerySnapshot
+  ): Promise<SnapshotChange[]> => {
+    console.log('Preparing snapshot');
+    return Promise.all(
+      snapshot.docChanges().map(async (change) => ({
+        type: change.type,
+        message: await docToMessage(change.doc),
+      }))
+    );
+  };
+
+  const appendSnapshot = (
+    currentMessages: IMessage[],
+    snapshotChanges: SnapshotChange[]
+  ): IMessage[] => {
+    console.log('Appending snapshot...');
+    const newMessages = [...currentMessages];
+
+    for (const change of snapshotChanges) {
+      switch (change.type) {
+        case 'removed':
+          console.log('Message remove id:', change.message._id);
+          const deleteIndex = newMessages.findIndex(
+            (m) => change.message._id == m._id
+          );
+          if (deleteIndex == -1) {
+            console.log('Message does not exist in currentMessage');
+            break;
+          }
+          newMessages.splice(deleteIndex, 1);
+          console.log('Message removed');
+          break;
+        case 'added':
+        case 'modified':
+          console.log('Message modified or added id:', change.message._id);
+          const modifiedIndex = newMessages.findIndex(
+            (m) => change.message._id == m._id
+          );
+          if (modifiedIndex == -1) {
+            console.log('Message added');
+            newMessages.push(change.message);
+          } else {
+            console.log('Message updated');
+            newMessages[modifiedIndex] = change.message;
+          }
+          break;
+      }
+    }
+
+    return newMessages.sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  };
+
   const markMessagesAsRead = useCallback(
     async (newMessages: IMessage[]) => {
       const unreadMessages = newMessages.filter(
@@ -152,9 +222,10 @@ export function CuteChat(props: CuteChatProps) {
     setIsLoading(true);
     const messagesRef = firestore().collection(`chats/${chatId}/messages`);
 
-    const unsubscribe = messagesRef
+    const unsubscribeOldMessages = messagesRef
       .orderBy('createdAt', 'desc')
-      .limit(20)
+      .startAfter(startDate.toISOString())
+      .limit(messageBatch)
       .onSnapshot(
         async (snapshot: FirebaseFirestore.QuerySnapshot) => {
           if (snapshot.empty) {
@@ -168,27 +239,35 @@ export function CuteChat(props: CuteChatProps) {
           }
 
           if (!snapshot.empty) {
-            setLastMessageDoc(
-              snapshot.docs[
-                snapshot.docs.length - 1
-              ] as FirebaseFirestore.QueryDocumentSnapshot
-            );
+            const snapshotChanges = await prepareSnapshot(snapshot);
+            setMessages((old) => appendSnapshot(old, snapshotChanges));
 
-            const newMessagesPromises = snapshot.docs.map(docToMessage);
-            const newMessages = await Promise.all(newMessagesPromises);
-
-            setMessages(newMessages);
             setIsLoading(false);
             setInitializing(false);
-
-            markMessagesAsRead(newMessages);
           }
         },
         (error: Error) => console.error('Error fetching documents: ', error)
       );
-    // Clean up function
-    return () => unsubscribe();
-  }, [chatId, docToMessage, markMessagesAsRead, setIsLoading]);
+
+    const unsubscribeNewMessages = messagesRef
+      .orderBy('createdAt', 'asc')
+      .startAfter(startDate.toISOString())
+      .onSnapshot(
+        async (snapshot: FirebaseFirestore.QuerySnapshot) => {
+          if (!snapshot.empty) {
+            console.log('New messages');
+            const snapshotChanges = await prepareSnapshot(snapshot);
+            setMessages((old) => appendSnapshot(old, snapshotChanges));
+          }
+        },
+        (error: Error) => console.error('Error fetching documents: ', error)
+      );
+
+    return () => {
+      unsubscribeOldMessages();
+      unsubscribeNewMessages();
+    };
+  }, [chatId, docToMessage, markMessagesAsRead, setIsLoading, startDate]);
 
   // Handle outgoing messages
   const onSend = async (newMessages: IMessage[] = []) => {
@@ -257,36 +336,19 @@ export function CuteChat(props: CuteChatProps) {
 
     setIsLoading(true);
     try {
+      console.log('Fetching more messages...');
       const messagesRef = firestore().collection(`chats/${chatId}/messages`);
       messagesRef
         .orderBy('createdAt', 'desc')
         .startAfter(lastMessageDoc)
-        .limit(20)
+        .limit(messageBatch)
         .onSnapshot(async (snapshot) => {
+          console.log('Messages received');
           if (!snapshot.empty) {
-            setLastMessageDoc(
-              snapshot.docs[
-                snapshot.docs.length - 1
-              ] as FirebaseFirestore.QueryDocumentSnapshot
-            );
-
-            const newMessages = await Promise.all(
-              snapshot.docs.map(docToMessage)
-            );
-
-            setMessages((previousMessages) => {
-              const newMessagesFiltered = newMessages.filter(
-                (newMessage) =>
-                  !previousMessages.some(
-                    (previousMessage) => previousMessage._id === newMessage._id
-                  )
-              );
-              return GiftedChat.prepend(previousMessages, newMessagesFiltered);
-            });
-
-            markMessagesAsRead(newMessages);
+            const snapshotChanges = await prepareSnapshot(snapshot);
+            setMessages((old) => appendSnapshot(old, snapshotChanges));
             setIsLoading(false);
-          }
+          } else console.log('Snapshot empty');
         });
     } catch (error) {
       console.error('Error fetching more messages: ', error);
@@ -300,6 +362,30 @@ export function CuteChat(props: CuteChatProps) {
     initializing,
   ]);
 
+  useEffect(() => {
+    if (!messages.length) {
+      setLastMessageDoc(null);
+      return;
+    }
+
+    try {
+      const lastMessage = messages[messages.length - 1];
+      console.log('Las message: ', lastMessage);
+      const lastMessageRef = firestore().doc(
+        `chats/${chatId}/messages/${lastMessage._id}`
+      );
+      const unsubscribe = lastMessageRef.onSnapshot(async (snapshot) => {
+        setLastMessageDoc(snapshot);
+      });
+
+      return () => unsubscribe();
+    } catch (error) {
+      console.error('Failed to set lastMessageDoc:', error);
+    }
+  }, [messages]);
+
+  console.log('Amount of msgs:', messages.length);
+
   return (
     <GiftedChat
       {...props}
@@ -308,9 +394,24 @@ export function CuteChat(props: CuteChatProps) {
       user={memoizedUser}
       inverted={true}
       listViewProps={{
-        onEndReached: fetchMoreMessages,
-        onEndReachedThreshold: 0.5,
+        onScroll: ({ nativeEvent }: { nativeEvent: NativeScrollEvent }) => {
+          if (isCloseToBottom(nativeEvent)) fetchMoreMessages();
+        },
+        scrollEventThrottle: 500,
       }}
     />
+  );
+}
+
+function isCloseToBottom({
+  layoutMeasurement,
+  contentOffset,
+  contentSize,
+}: NativeScrollEvent) {
+  const paddingToBottom = 500;
+
+  return (
+    layoutMeasurement.height + contentOffset.y >=
+    contentSize.height - paddingToBottom
   );
 }
