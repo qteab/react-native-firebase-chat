@@ -3,7 +3,9 @@ import firestore, {
 } from '@react-native-firebase/firestore';
 import type { IMessage } from 'react-native-gifted-chat';
 
-// Utility function to convert a Firestore document to a Gifted Chat message
+/**
+ * Utility function to convert a Firestore document to a `GiftedChat` message.
+ */
 export const docToMessage = async (
   doc: FirebaseFirestore.QueryDocumentSnapshot,
   chatId: string

@@ -7,6 +7,9 @@ export type SnapshotChange = {
   message: IMessage;
 };
 
+/**
+ * Prepares snapshot changes for internal usage.
+ */
 export const prepareSnapshot = async (
   snapshot: FirebaseFirestore.QuerySnapshot,
   chatId: string

@@ -35,14 +35,16 @@ type CuteChatProps = Omit<GiftedChatProps, 'messages' | 'user' | 'onSend'> &
 const messageBatch = 20;
 
 export function CuteChat(props: CuteChatProps) {
+  const { chatId, user, setIsLoading } = props;
+
   const [messages, setMessages] = useState<IMessage[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [initializing, setInitializing] = useState(true);
   const [lastMessageDoc, setLastMessageDoc] =
     useState<FirebaseFirestore.DocumentSnapshot | null>(null);
-  const { chatId, user, setIsLoading } = props;
+
   const memoizedUser = useMemo(() => ({ _id: user.id, ...user }), [user]);
-  const [initializing, setInitializing] = useState(true);
   const startDate = useMemo(() => new Date(), []);
-  const [loading, setLoading] = useState(false);
 
   const setIsLoadingBool = useCallback(
     (isLoading: boolean) => {

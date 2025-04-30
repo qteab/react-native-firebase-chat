@@ -1,6 +1,13 @@
 import { IMessage } from 'react-native-gifted-chat';
 import { SnapshotChange } from './prepareSnapshot';
 
+/**
+ * Returns transformed messages based on snapshot events.
+ * This can include removed, added or modified messages and are updated
+ * and returned accordingly via this function.
+ *
+ * This function **does not** mutate the original `currentMessages` array.
+ */
 export const appendSnapshot = (
   currentMessages: IMessage[],
   snapshotChanges: SnapshotChange[]
