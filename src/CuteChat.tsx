@@ -220,7 +220,7 @@ export function CuteChat(props: CuteChatProps) {
     [chatId, memoizedUser._id]
   );
 
-  // Fetch initial messages
+  // Fetch initial messages and subscribe to potential future messages
   useLayoutEffect(() => {
     setIsLoading(true);
     const messagesRef = firestore().collection(`chats/${chatId}/messages`);
