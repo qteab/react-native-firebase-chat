@@ -14,6 +14,7 @@ import type { IMessage } from 'react-native-gifted-chat';
 import { GiftedChat, GiftedChatProps } from 'react-native-gifted-chat';
 import { appendSnapshot } from './utils/appendSnapshot';
 import { prepareSnapshot } from './utils/prepareSnapshot';
+import { isCloseToBottom } from './utils/isCloseToBottom';
 
 interface CustomCuteChatProps {
   chatId: string;
@@ -294,18 +295,5 @@ export function CuteChat(props: CuteChatProps) {
         scrollEventThrottle: 500,
       }}
     />
-  );
-}
-
-function isCloseToBottom({
-  layoutMeasurement,
-  contentOffset,
-  contentSize,
-}: NativeScrollEvent) {
-  const paddingToBottom = 500;
-
-  return (
-    layoutMeasurement.height + contentOffset.y >=
-    contentSize.height - paddingToBottom
   );
 }
