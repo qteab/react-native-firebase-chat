@@ -17,36 +17,27 @@ export const docToMessage = async (
   }
 
   const [files, sender] = await Promise.all([
-    new Promise<
-      | FirebaseFirestore.QueryDocumentSnapshot<FirebaseFirestore.DocumentData>[]
-      | undefined
-    >((resolve, reject) => {
-      firestore()
-        .collection(`chats/${chatId}/messages/${doc.id}/files`)
-        .onSnapshot((snapshot) => {
-          if (snapshot.empty) {
-            resolve(undefined);
-          } else {
-            resolve(snapshot.docs);
-          }
-        }, reject);
-    }),
+    new Promise<FirebaseFirestore.DocumentData | undefined>(
+      (resolve, reject) => {
+        firestore()
+          .collection(`chats/${chatId}/messages/${doc.id}/files`)
+          .get()
+          .then((data) => resolve(data))
+          .catch((e) => reject(e));
+      }
+    ),
     new Promise<FirebaseFirestore.DocumentData | undefined>(
       (resolve, reject) => {
         firestore()
           .doc(data.senderRef._documentPath._parts.join('/'))
-          .onSnapshot((snapshot) => {
-            if (!snapshot.exists) {
-              resolve(undefined);
-            } else {
-              resolve(snapshot.data());
-            }
-          }, reject);
+          .get()
+          .then((data) => resolve(data))
+          .catch((e) => reject(e));
       }
     ),
   ]);
 
-  const image = files?.[0]?.data().url;
+  const image = files?.docs[0]?.data().url;
 
   // Fetch user data from reference
   if (sender) {
