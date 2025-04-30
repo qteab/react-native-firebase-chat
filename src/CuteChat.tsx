@@ -41,14 +41,18 @@ export function CuteChat(props: CuteChatProps) {
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [lastMessageDoc, setLastMessageDoc] =
     useState<FirebaseFirestore.DocumentSnapshot | null>(null);
-  const { chatId, user } = props;
+  const { chatId, user, setIsLoading } = props;
   const memoizedUser = useMemo(() => ({ _id: user.id, ...user }), [user]);
   const [initializing, setInitializing] = useState(true);
   const startDate = useMemo(() => new Date(), []);
+  const [loading, setLoading] = useState(false);
 
-  const setIsLoading = useMemo(
-    () => props.setIsLoading || (() => {}),
-    [props.setIsLoading]
+  const setIsLoadingBool = useCallback(
+    (isLoading: boolean) => {
+      setIsLoading?.(isLoading);
+      setLoading(isLoading);
+    },
+    [setIsLoading]
   );
 
   // Utility function to convert a Firestore document to a Gifted Chat message
@@ -222,7 +226,7 @@ export function CuteChat(props: CuteChatProps) {
 
   // Fetch initial messages and subscribe to potential future messages
   useLayoutEffect(() => {
-    setIsLoading(true);
+    setIsLoadingBool(true);
     const messagesRef = firestore().collection(`chats/${chatId}/messages`);
 
     const unsubscribeOldMessages = messagesRef
@@ -235,7 +239,7 @@ export function CuteChat(props: CuteChatProps) {
             setLastMessageDoc(null);
 
             setMessages([]);
-            setIsLoading(false);
+            setIsLoadingBool(false);
             setInitializing(false);
 
             markMessagesAsRead([]);
@@ -245,7 +249,7 @@ export function CuteChat(props: CuteChatProps) {
             const snapshotChanges = await prepareSnapshot(snapshot);
             setMessages((old) => appendSnapshot(old, snapshotChanges));
 
-            setIsLoading(false);
+            setIsLoadingBool(false);
             setInitializing(false);
           }
         },
@@ -274,7 +278,7 @@ export function CuteChat(props: CuteChatProps) {
     chatId,
     docToMessage,
     markMessagesAsRead,
-    setIsLoading,
+    setIsLoadingBool,
     startDate,
     prepareSnapshot,
   ]);
@@ -342,10 +346,18 @@ export function CuteChat(props: CuteChatProps) {
   // Function to fetch more messages
   const fetchMoreMessages = useCallback(async () => {
     if (initializing) {
-      return;
+      return console.log(
+        'Skipping fetching more messages since initializing is still true'
+      );
     }
 
-    setIsLoading(true);
+    if (loading) {
+      return console.log(
+        'Skipping fetching more messages since loading is already true'
+      );
+    }
+
+    setIsLoadingBool(true);
     try {
       console.log('Fetching more messages...');
       const messagesRef = firestore().collection(`chats/${chatId}/messages`);
@@ -358,13 +370,23 @@ export function CuteChat(props: CuteChatProps) {
           if (!snapshot.empty) {
             const snapshotChanges = await prepareSnapshot(snapshot);
             setMessages((old) => appendSnapshot(old, snapshotChanges));
-            setIsLoading(false);
-          } else console.log('Snapshot empty');
+          } else {
+            console.log('Snapshot empty');
+          }
+
+          setIsLoadingBool(false);
         });
     } catch (error) {
       console.error('Error fetching more messages: ', error);
     }
-  }, [chatId, lastMessageDoc, setIsLoading, initializing, prepareSnapshot]);
+  }, [
+    chatId,
+    lastMessageDoc,
+    setIsLoadingBool,
+    initializing,
+    prepareSnapshot,
+    loading,
+  ]);
 
   // Keep `lastMessageDoc` up to date based on `messages`
   useEffect(() => {
