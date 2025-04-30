@@ -118,17 +118,20 @@ export function CuteChat(props: CuteChatProps) {
     [chatId]
   );
 
-  const prepareSnapshot = async (
-    snapshot: FirebaseFirestore.QuerySnapshot
-  ): Promise<SnapshotChange[]> => {
-    console.log('Preparing snapshot');
-    return Promise.all(
-      snapshot.docChanges().map(async (change) => ({
-        type: change.type,
-        message: await docToMessage(change.doc),
-      }))
-    );
-  };
+  const prepareSnapshot = useCallback(
+    async (
+      snapshot: FirebaseFirestore.QuerySnapshot
+    ): Promise<SnapshotChange[]> => {
+      console.log('Preparing snapshot');
+      return Promise.all(
+        snapshot.docChanges().map(async (change) => ({
+          type: change.type,
+          message: await docToMessage(change.doc),
+        }))
+      );
+    },
+    [docToMessage]
+  );
 
   const appendSnapshot = (
     currentMessages: IMessage[],
@@ -142,9 +145,9 @@ export function CuteChat(props: CuteChatProps) {
         case 'removed':
           console.log('Message remove id:', change.message._id);
           const deleteIndex = newMessages.findIndex(
-            (m) => change.message._id == m._id
+            (m) => change.message._id === m._id
           );
-          if (deleteIndex == -1) {
+          if (deleteIndex === -1) {
             console.log('Message does not exist in currentMessage');
             break;
           }
@@ -155,9 +158,9 @@ export function CuteChat(props: CuteChatProps) {
         case 'modified':
           console.log('Message modified or added id:', change.message._id);
           const modifiedIndex = newMessages.findIndex(
-            (m) => change.message._id == m._id
+            (m) => change.message._id === m._id
           );
-          if (modifiedIndex == -1) {
+          if (modifiedIndex === -1) {
             console.log('Message added');
             newMessages.push(change.message);
           } else {
@@ -267,7 +270,14 @@ export function CuteChat(props: CuteChatProps) {
       unsubscribeOldMessages();
       unsubscribeNewMessages();
     };
-  }, [chatId, docToMessage, markMessagesAsRead, setIsLoading, startDate]);
+  }, [
+    chatId,
+    docToMessage,
+    markMessagesAsRead,
+    setIsLoading,
+    startDate,
+    prepareSnapshot,
+  ]);
 
   // Handle outgoing messages
   const onSend = async (newMessages: IMessage[] = []) => {
@@ -329,6 +339,7 @@ export function CuteChat(props: CuteChatProps) {
     }
   };
 
+  // Function to fetch more messages
   const fetchMoreMessages = useCallback(async () => {
     if (initializing) {
       return;
@@ -353,15 +364,9 @@ export function CuteChat(props: CuteChatProps) {
     } catch (error) {
       console.error('Error fetching more messages: ', error);
     }
-  }, [
-    chatId,
-    lastMessageDoc,
-    docToMessage,
-    markMessagesAsRead,
-    setIsLoading,
-    initializing,
-  ]);
+  }, [chatId, lastMessageDoc, setIsLoading, initializing, prepareSnapshot]);
 
+  // Keep `lastMessageDoc` up to date based on `messages`
   useEffect(() => {
     if (!messages.length) {
       setLastMessageDoc(null);
@@ -370,10 +375,17 @@ export function CuteChat(props: CuteChatProps) {
 
     try {
       const lastMessage = messages[messages.length - 1];
-      console.log('Las message: ', lastMessage);
+
+      if (!lastMessage) {
+        console.log('No last message. Skipping setting last message.');
+        return;
+      }
+
+      console.log('Last message: ', lastMessage);
       const lastMessageRef = firestore().doc(
         `chats/${chatId}/messages/${lastMessage._id}`
       );
+
       const unsubscribe = lastMessageRef.onSnapshot(async (snapshot) => {
         setLastMessageDoc(snapshot);
       });
@@ -381,8 +393,9 @@ export function CuteChat(props: CuteChatProps) {
       return () => unsubscribe();
     } catch (error) {
       console.error('Failed to set lastMessageDoc:', error);
+      return;
     }
-  }, [messages]);
+  }, [messages, chatId]);
 
   console.log('Amount of msgs:', messages.length);
 
