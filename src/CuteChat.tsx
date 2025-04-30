@@ -32,11 +32,6 @@ interface User {
 type CuteChatProps = Omit<GiftedChatProps, 'messages' | 'user' | 'onSend'> &
   CustomCuteChatProps;
 
-export type SnapshotChange = {
-  type: FirebaseFirestore.DocumentChangeType;
-  message: IMessage;
-};
-
 const messageBatch = 20;
 
 export function CuteChat(props: CuteChatProps) {

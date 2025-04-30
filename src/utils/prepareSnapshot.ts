@@ -1,6 +1,11 @@
-import { SnapshotChange } from 'src/CuteChat';
 import { FirebaseFirestoreTypes as FirebaseFirestore } from '@react-native-firebase/firestore';
 import { docToMessage } from './docToMessage';
+import { IMessage } from 'react-native-gifted-chat';
+
+export type SnapshotChange = {
+  type: FirebaseFirestore.DocumentChangeType;
+  message: IMessage;
+};
 
 export const prepareSnapshot = async (
   snapshot: FirebaseFirestore.QuerySnapshot,

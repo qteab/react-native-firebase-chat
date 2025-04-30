@@ -1,5 +1,5 @@
 import { IMessage } from 'react-native-gifted-chat';
-import { SnapshotChange } from 'src/CuteChat';
+import { SnapshotChange } from './prepareSnapshot';
 
 export const appendSnapshot = (
   currentMessages: IMessage[],
