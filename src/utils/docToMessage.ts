@@ -17,24 +17,8 @@ export const docToMessage = async (
   }
 
   const [files, sender] = await Promise.all([
-    new Promise<FirebaseFirestore.DocumentData | undefined>(
-      (resolve, reject) => {
-        firestore()
-          .collection(`chats/${chatId}/messages/${doc.id}/files`)
-          .get()
-          .then((data) => resolve(data))
-          .catch((e) => reject(e));
-      }
-    ),
-    new Promise<FirebaseFirestore.DocumentData | undefined>(
-      (resolve, reject) => {
-        firestore()
-          .doc(data.senderRef._documentPath._parts.join('/'))
-          .get()
-          .then((data) => resolve(data))
-          .catch((e) => reject(e));
-      }
-    ),
+    firestore().collection(`chats/${chatId}/messages/${doc.id}/files`).get(),
+    firestore().doc(data.senderRef._documentPath._parts.join('/')).get(),
   ]);
 
   const image = files?.docs[0]?.data().url;
