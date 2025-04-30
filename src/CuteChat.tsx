@@ -9,7 +9,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { Alert, NativeScrollEvent } from 'react-native';
+import { Alert, NativeScrollEvent, View } from 'react-native';
 import type { IMessage } from 'react-native-gifted-chat';
 import { GiftedChat, GiftedChatProps } from 'react-native-gifted-chat';
 import { appendSnapshot } from './utils/appendSnapshot';
@@ -288,6 +288,30 @@ export function CuteChat(props: CuteChatProps) {
   return (
     <GiftedChat
       {...props}
+      // TODO: Add renderChatFooter with absolute positioning to render:
+      // - Arrow back down
+      // - New messages banner
+      renderChatFooter={() => (
+        <>
+          {!closeToTop && props.scrollToBottomComponent && (
+            <View
+              style={
+                props.scrollToBottomStyle ?? {
+                  position: 'absolute',
+                  bottom: 30,
+                  right: 20,
+                  backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                  padding: 10,
+                  borderRadius: 100,
+                }
+              }
+            >
+              {props.scrollToBottomComponent()}
+            </View>
+          )}
+          {props.renderChatFooter?.()}
+        </>
+      )}
       messages={messages}
       onSend={props.onSend || onSend}
       user={memoizedUser}
