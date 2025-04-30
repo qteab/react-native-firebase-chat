@@ -15,6 +15,7 @@ import { GiftedChat, GiftedChatProps } from 'react-native-gifted-chat';
 import { appendSnapshot } from './utils/appendSnapshot';
 import { prepareSnapshot } from './utils/prepareSnapshot';
 import { isCloseToBottom } from './utils/isCloseToBottom';
+import { isCloseToTop } from './utils/isCloseToTop';
 
 interface CustomCuteChatProps {
   chatId: string;
@@ -38,6 +39,7 @@ const messageBatch = 20;
 export function CuteChat(props: CuteChatProps) {
   const { chatId, user, setIsLoading } = props;
 
+  const [closeToTop, setCloseToTop] = useState(true);
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [initializing, setInitializing] = useState(true);
@@ -281,6 +283,8 @@ export function CuteChat(props: CuteChatProps) {
 
   console.log('Amount of msgs:', messages.length);
 
+  console.log('Close to top:', closeToTop);
+
   return (
     <GiftedChat
       {...props}
@@ -291,6 +295,9 @@ export function CuteChat(props: CuteChatProps) {
       listViewProps={{
         onScroll: ({ nativeEvent }: { nativeEvent: NativeScrollEvent }) => {
           if (isCloseToBottom(nativeEvent)) fetchMoreMessages();
+
+          if (isCloseToTop(nativeEvent)) setCloseToTop(true);
+          else setCloseToTop(false);
         },
         scrollEventThrottle: 500,
       }}
