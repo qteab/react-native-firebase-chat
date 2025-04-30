@@ -55,21 +55,6 @@ export function CuteChat(props: CuteChatProps) {
     [setIsLoading]
   );
 
-  const prepareSnapshot = useCallback(
-    async (
-      snapshot: FirebaseFirestore.QuerySnapshot
-    ): Promise<SnapshotChange[]> => {
-      console.log('Preparing snapshot');
-      return Promise.all(
-        snapshot.docChanges().map(async (change) => ({
-          type: change.type,
-          message: await docToMessage(change.doc, chatId),
-        }))
-      );
-    },
-    [chatId]
-  );
-
   const appendSnapshot = (
     currentMessages: IMessage[],
     snapshotChanges: SnapshotChange[]
@@ -179,7 +164,7 @@ export function CuteChat(props: CuteChatProps) {
           }
 
           if (!snapshot.empty) {
-            const snapshotChanges = await prepareSnapshot(snapshot);
+            const snapshotChanges = await prepareSnapshot(snapshot, chatId);
             setMessages((old) => appendSnapshot(old, snapshotChanges));
 
             setIsLoadingBool(false);
@@ -196,7 +181,7 @@ export function CuteChat(props: CuteChatProps) {
         async (snapshot: FirebaseFirestore.QuerySnapshot) => {
           if (!snapshot.empty) {
             console.log('New messages');
-            const snapshotChanges = await prepareSnapshot(snapshot);
+            const snapshotChanges = await prepareSnapshot(snapshot, chatId);
             setMessages((old) => appendSnapshot(old, snapshotChanges));
           }
         },
@@ -207,13 +192,7 @@ export function CuteChat(props: CuteChatProps) {
       unsubscribeOldMessages();
       unsubscribeNewMessages();
     };
-  }, [
-    chatId,
-    markMessagesAsRead,
-    setIsLoadingBool,
-    startDate,
-    prepareSnapshot,
-  ]);
+  }, [chatId, markMessagesAsRead, setIsLoadingBool, startDate]);
 
   // Handle outgoing messages
   const onSend = async (newMessages: IMessage[] = []) => {
@@ -300,7 +279,7 @@ export function CuteChat(props: CuteChatProps) {
         .onSnapshot(async (snapshot) => {
           console.log('Messages received');
           if (!snapshot.empty) {
-            const snapshotChanges = await prepareSnapshot(snapshot);
+            const snapshotChanges = await prepareSnapshot(snapshot, chatId);
             setMessages((old) => appendSnapshot(old, snapshotChanges));
           } else {
             console.log('Snapshot empty');
@@ -311,14 +290,7 @@ export function CuteChat(props: CuteChatProps) {
     } catch (error) {
       console.error('Error fetching more messages: ', error);
     }
-  }, [
-    chatId,
-    lastMessageDoc,
-    setIsLoadingBool,
-    initializing,
-    prepareSnapshot,
-    loading,
-  ]);
+  }, [chatId, lastMessageDoc, setIsLoadingBool, initializing, loading]);
 
   // Keep `lastMessageDoc` up to date based on `messages`
   useEffect(() => {
@@ -448,4 +420,18 @@ export const docToMessage = async (
       metadata: data.metadata,
     };
   }
+};
+
+export const prepareSnapshot = async (
+  snapshot: FirebaseFirestore.QuerySnapshot,
+  chatId: string
+): Promise<SnapshotChange[]> => {
+  console.log('Preparing snapshot');
+
+  return Promise.all(
+    snapshot.docChanges().map(async (change) => ({
+      type: change.type,
+      message: await docToMessage(change.doc, chatId),
+    }))
+  );
 };
