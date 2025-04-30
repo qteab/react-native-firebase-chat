@@ -2,10 +2,19 @@ import firestore, {
   FirebaseFirestoreTypes as FirebaseFirestore,
   firebase,
 } from '@react-native-firebase/firestore';
-import React, { useCallback, useLayoutEffect, useMemo, useState } from 'react';
-import { Alert } from 'react-native';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from 'react';
+import { Alert, NativeScrollEvent } from 'react-native';
 import type { IMessage } from 'react-native-gifted-chat';
 import { GiftedChat, GiftedChatProps } from 'react-native-gifted-chat';
+import { appendSnapshot } from './utils/appendSnapshot';
+import { prepareSnapshot } from './utils/prepareSnapshot';
+import { isCloseToBottom } from './utils/isCloseToBottom';
 
 interface CustomCuteChatProps {
   chatId: string;
@@ -24,84 +33,26 @@ interface User {
 type CuteChatProps = Omit<GiftedChatProps, 'messages' | 'user' | 'onSend'> &
   CustomCuteChatProps;
 
+const messageBatch = 20;
+
 export function CuteChat(props: CuteChatProps) {
+  const { chatId, user, setIsLoading } = props;
+
   const [messages, setMessages] = useState<IMessage[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [initializing, setInitializing] = useState(true);
   const [lastMessageDoc, setLastMessageDoc] =
     useState<FirebaseFirestore.DocumentSnapshot | null>(null);
-  const { chatId, user } = props;
+
   const memoizedUser = useMemo(() => ({ _id: user.id, ...user }), [user]);
-  const [initializing, setInitializing] = useState(true);
+  const startDate = useMemo(() => new Date(), []);
 
-  const setIsLoading = useMemo(
-    () => props.setIsLoading || (() => {}),
-    [props.setIsLoading]
-  );
-
-  // Utility function to convert a Firestore document to a Gifted Chat message
-  const docToMessage = useCallback(
-    async (doc: FirebaseFirestore.QueryDocumentSnapshot): Promise<IMessage> => {
-      const data = doc.data();
-
-      if (!data) {
-        throw new Error('Document data is undefined');
-      }
-
-      const [files, sender] = await Promise.all([
-        new Promise<
-          | FirebaseFirestore.QueryDocumentSnapshot<FirebaseFirestore.DocumentData>[]
-          | undefined
-        >((resolve, reject) => {
-          firestore()
-            .collection(`chats/${chatId}/messages/${doc.id}/files`)
-            .onSnapshot((snapshot) => {
-              if (snapshot.empty) {
-                resolve(undefined);
-              } else {
-                resolve(snapshot.docs);
-              }
-            }, reject);
-        }),
-        new Promise<FirebaseFirestore.DocumentData | undefined>(
-          (resolve, reject) => {
-            firestore()
-              .doc(data.senderRef._documentPath._parts.join('/'))
-              .onSnapshot((snapshot) => {
-                if (!snapshot.exists) {
-                  resolve(undefined);
-                } else {
-                  resolve(snapshot.data());
-                }
-              }, reject);
-          }
-        ),
-      ]);
-
-      const image = files?.[0]?.data().url;
-
-      // Fetch user data from reference
-      if (sender) {
-        return {
-          _id: doc.id,
-          createdAt: new Date(data.createdAt),
-          text: data.content,
-          user: { _id: data.senderId, ...sender },
-          image: image,
-          readByIds: data.readByIds,
-          metadata: data.metadata,
-        };
-      } else {
-        return {
-          _id: doc.id,
-          createdAt: new Date(data.createdAt),
-          text: data.content,
-          image: image,
-          system: true,
-          readByIds: data.readByIds,
-          metadata: data.metadata,
-        };
-      }
+  const setIsLoadingBool = useCallback(
+    (isLoading: boolean) => {
+      setIsLoading?.(isLoading);
+      setLoading(isLoading);
     },
-    [chatId]
+    [setIsLoading]
   );
 
   const markMessagesAsRead = useCallback(
@@ -147,48 +98,57 @@ export function CuteChat(props: CuteChatProps) {
     [chatId, memoizedUser._id]
   );
 
-  // Fetch initial messages
+  // Fetch initial messages and subscribe to potential future messages
   useLayoutEffect(() => {
-    setIsLoading(true);
+    setIsLoadingBool(true);
     const messagesRef = firestore().collection(`chats/${chatId}/messages`);
 
-    const unsubscribe = messagesRef
+    const unsubscribeOldMessages = messagesRef
       .orderBy('createdAt', 'desc')
-      .limit(20)
+      .startAfter(startDate.toISOString())
+      .limit(messageBatch)
       .onSnapshot(
         async (snapshot: FirebaseFirestore.QuerySnapshot) => {
           if (snapshot.empty) {
             setLastMessageDoc(null);
 
             setMessages([]);
-            setIsLoading(false);
+            setIsLoadingBool(false);
             setInitializing(false);
 
             markMessagesAsRead([]);
           }
 
           if (!snapshot.empty) {
-            setLastMessageDoc(
-              snapshot.docs[
-                snapshot.docs.length - 1
-              ] as FirebaseFirestore.QueryDocumentSnapshot
-            );
+            const snapshotChanges = await prepareSnapshot(snapshot, chatId);
+            setMessages((old) => appendSnapshot(old, snapshotChanges));
 
-            const newMessagesPromises = snapshot.docs.map(docToMessage);
-            const newMessages = await Promise.all(newMessagesPromises);
-
-            setMessages(newMessages);
-            setIsLoading(false);
+            setIsLoadingBool(false);
             setInitializing(false);
-
-            markMessagesAsRead(newMessages);
           }
         },
         (error: Error) => console.error('Error fetching documents: ', error)
       );
-    // Clean up function
-    return () => unsubscribe();
-  }, [chatId, docToMessage, markMessagesAsRead, setIsLoading]);
+
+    const unsubscribeNewMessages = messagesRef
+      .orderBy('createdAt', 'asc')
+      .startAfter(startDate.toISOString())
+      .onSnapshot(
+        async (snapshot: FirebaseFirestore.QuerySnapshot) => {
+          if (!snapshot.empty) {
+            console.log('New messages');
+            const snapshotChanges = await prepareSnapshot(snapshot, chatId);
+            setMessages((old) => appendSnapshot(old, snapshotChanges));
+          }
+        },
+        (error: Error) => console.error('Error fetching documents: ', error)
+      );
+
+    return () => {
+      unsubscribeOldMessages();
+      unsubscribeNewMessages();
+    };
+  }, [chatId, markMessagesAsRead, setIsLoadingBool, startDate]);
 
   // Handle outgoing messages
   const onSend = async (newMessages: IMessage[] = []) => {
@@ -250,55 +210,76 @@ export function CuteChat(props: CuteChatProps) {
     }
   };
 
+  // Function to fetch more messages
   const fetchMoreMessages = useCallback(async () => {
     if (initializing) {
-      return;
+      return console.log(
+        'Skipping fetching more messages since initializing is still true'
+      );
     }
 
-    setIsLoading(true);
+    if (loading) {
+      return console.log(
+        'Skipping fetching more messages since loading is already true'
+      );
+    }
+
+    setIsLoadingBool(true);
     try {
+      console.log('Fetching more messages...');
       const messagesRef = firestore().collection(`chats/${chatId}/messages`);
       messagesRef
         .orderBy('createdAt', 'desc')
         .startAfter(lastMessageDoc)
-        .limit(20)
+        .limit(messageBatch)
         .onSnapshot(async (snapshot) => {
+          console.log('Messages received');
           if (!snapshot.empty) {
-            setLastMessageDoc(
-              snapshot.docs[
-                snapshot.docs.length - 1
-              ] as FirebaseFirestore.QueryDocumentSnapshot
-            );
-
-            const newMessages = await Promise.all(
-              snapshot.docs.map(docToMessage)
-            );
-
-            setMessages((previousMessages) => {
-              const newMessagesFiltered = newMessages.filter(
-                (newMessage) =>
-                  !previousMessages.some(
-                    (previousMessage) => previousMessage._id === newMessage._id
-                  )
-              );
-              return GiftedChat.prepend(previousMessages, newMessagesFiltered);
-            });
-
-            markMessagesAsRead(newMessages);
-            setIsLoading(false);
+            const snapshotChanges = await prepareSnapshot(snapshot, chatId);
+            setMessages((old) => appendSnapshot(old, snapshotChanges));
+          } else {
+            console.log('Snapshot empty');
           }
+
+          setIsLoadingBool(false);
         });
     } catch (error) {
       console.error('Error fetching more messages: ', error);
     }
-  }, [
-    chatId,
-    lastMessageDoc,
-    docToMessage,
-    markMessagesAsRead,
-    setIsLoading,
-    initializing,
-  ]);
+  }, [chatId, lastMessageDoc, setIsLoadingBool, initializing, loading]);
+
+  // Keep `lastMessageDoc` up to date based on `messages`
+  useEffect(() => {
+    if (!messages.length) {
+      setLastMessageDoc(null);
+      return;
+    }
+
+    try {
+      const lastMessage = messages[messages.length - 1];
+
+      if (!lastMessage) {
+        console.log('No last message. Skipping setting last message.');
+        return;
+      }
+
+      console.log('Last message: ', lastMessage);
+      const lastMessageRef = firestore().doc(
+        `chats/${chatId}/messages/${lastMessage._id}`
+      );
+
+      const unsubscribe = lastMessageRef.onSnapshot(async (snapshot) => {
+        setLastMessageDoc(snapshot);
+      });
+
+      return () => unsubscribe();
+    } catch (error) {
+      console.error('Failed to set lastMessageDoc:', error);
+      return;
+    }
+  }, [messages, chatId]);
+
+  console.log('Amount of msgs:', messages.length);
 
   return (
     <GiftedChat
@@ -308,8 +289,10 @@ export function CuteChat(props: CuteChatProps) {
       user={memoizedUser}
       inverted={true}
       listViewProps={{
-        onEndReached: fetchMoreMessages,
-        onEndReachedThreshold: 0.5,
+        onScroll: ({ nativeEvent }: { nativeEvent: NativeScrollEvent }) => {
+          if (isCloseToBottom(nativeEvent)) fetchMoreMessages();
+        },
+        scrollEventThrottle: 500,
       }}
     />
   );

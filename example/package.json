@@ -18,7 +18,8 @@
     "react-native": "0.71.10",
     "react-native-image-picker": "^5.4.2",
     "react-native-svg": "^13.9.0",
-    "react-native-svg-transformer": "^1.0.0"
+    "react-native-svg-transformer": "^1.0.0",
+    "@qteab/react-native-firebase-chat": "file:../"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
