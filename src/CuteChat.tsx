@@ -7,9 +7,16 @@ import React, {
   useEffect,
   useLayoutEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
-import { Alert, NativeScrollEvent, View } from 'react-native';
+import {
+  Alert,
+  FlatList,
+  NativeScrollEvent,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import type { IMessage } from 'react-native-gifted-chat';
 import { GiftedChat, GiftedChatProps } from 'react-native-gifted-chat';
 import { appendSnapshot } from './utils/appendSnapshot';
@@ -285,6 +292,12 @@ export function CuteChat(props: CuteChatProps) {
 
   console.log('Close to top:', closeToTop);
 
+  const chatRef = useRef<FlatList<IMessage>>(null);
+
+  const scrollToBottom = () => {
+    chatRef.current?.scrollToOffset({ offset: 0, animated: true });
+  };
+
   return (
     <GiftedChat
       {...props}
@@ -294,7 +307,8 @@ export function CuteChat(props: CuteChatProps) {
       renderChatFooter={() => (
         <>
           {!closeToTop && props.scrollToBottomComponent && (
-            <View
+            <TouchableOpacity
+              onPress={scrollToBottom}
               style={
                 props.scrollToBottomStyle ?? {
                   position: 'absolute',
@@ -307,7 +321,7 @@ export function CuteChat(props: CuteChatProps) {
               }
             >
               {props.scrollToBottomComponent()}
-            </View>
+            </TouchableOpacity>
           )}
           {props.renderChatFooter?.()}
         </>
@@ -317,6 +331,7 @@ export function CuteChat(props: CuteChatProps) {
       user={memoizedUser}
       inverted={true}
       listViewProps={{
+        ref: chatRef,
         onScroll: ({ nativeEvent }: { nativeEvent: NativeScrollEvent }) => {
           if (isCloseToBottom(nativeEvent)) fetchMoreMessages();
 
