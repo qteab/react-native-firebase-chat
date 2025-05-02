@@ -59,7 +59,7 @@ export function CuteChat(props: CuteChatProps) {
   const memoizedUser = useMemo(() => ({ _id: user.id, ...user }), [user]);
   const startDate = useMemo(() => new Date(), []);
 
-  const chatRef = useRef<FlatList<IMessage>>(null);
+  const chatListRef = useRef<FlatList<IMessage>>(null);
 
   const setIsLoadingBool = useCallback(
     (isLoading: boolean) => {
@@ -311,7 +311,7 @@ export function CuteChat(props: CuteChatProps) {
             scrollToBottomComponent={props.scrollToBottomComponent}
             scrollToBottomStyle={props.scrollToBottomStyle}
             closeToTop={closeToTop}
-            chatRef={chatRef}
+            chatRef={chatListRef}
           />
           {props.renderChatFooter?.()}
         </>
@@ -321,7 +321,7 @@ export function CuteChat(props: CuteChatProps) {
       user={memoizedUser}
       inverted={true}
       listViewProps={{
-        ref: chatRef,
+        ref: chatListRef,
         onScroll: ({ nativeEvent }: { nativeEvent: NativeScrollEvent }) => {
           if (isCloseToBottom(nativeEvent)) fetchMoreMessages();
 

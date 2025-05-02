@@ -1,12 +1,9 @@
-import { ReactNode, RefObject } from 'react';
-import {
-  FlatList,
-  StyleProp,
-  TouchableOpacity,
-  View,
-  ViewStyle,
-} from 'react-native';
+import React, { ReactNode, RefObject } from 'react';
+import { FlatList, StyleProp, View, ViewStyle } from 'react-native';
 import { IMessage } from 'react-native-gifted-chat';
+import { RightSection } from './RightSection';
+import { MiddleSection } from './MiddleSection';
+import { LeftSection } from './LeftSection';
 
 export const ChatFooter = (props: {
   newMessagesBannerComponent?: () => ReactNode;
@@ -28,48 +25,26 @@ export const ChatFooter = (props: {
         position: 'absolute',
         flexDirection: 'row',
         justifyContent: 'flex-start',
-        backgroundColor: 'rgba(255, 255, 255, 0.8)',
         width: '100%',
-        height: 100,
-        bottom: 0,
+        bottom: 40,
         left: 0,
       }}
     >
-      <View style={{ display: 'flex', flex: 1 }}></View>
-      <View style={{ display: 'flex', flex: 1 }}>
-        {!props.closeToTop && props.newMessagesBannerComponent && (
-          <TouchableOpacity
-            onPress={scrollToBottom}
-            style={
-              props.newMessagesBannerStyles ?? {
-                alignSelf: 'center',
-                backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                padding: 10,
-                borderRadius: 100,
-              }
-            }
-          >
-            {props.newMessagesBannerComponent()}
-          </TouchableOpacity>
-        )}
-      </View>
-      <View style={{ display: 'flex', flex: 1 }}>
-        {!props.closeToTop && props.scrollToBottomComponent && (
-          <TouchableOpacity
-            onPress={scrollToBottom}
-            style={
-              props.scrollToBottomStyle ?? {
-                alignSelf: 'flex-end',
-                backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                padding: 10,
-                borderRadius: 100,
-              }
-            }
-          >
-            {props.scrollToBottomComponent()}
-          </TouchableOpacity>
-        )}
-      </View>
+      <LeftSection />
+
+      <MiddleSection
+        newMessagesBannerComponent={props.newMessagesBannerComponent}
+        newMessagesBannerStyles={props.newMessagesBannerStyles}
+        onNewMessagesBannerPress={scrollToBottom}
+        closeToTop={props.closeToTop}
+      />
+
+      <RightSection
+        scrollToBottom={scrollToBottom}
+        scrollToBottomComponent={props.scrollToBottomComponent}
+        scrollToBottomStyle={props.scrollToBottomStyle}
+        closeToTop={props.closeToTop}
+      />
     </View>
   );
 };
