@@ -55,6 +55,7 @@ export function CuteChat(props: CuteChatProps) {
   const [initializing, setInitializing] = useState(true);
   const [lastMessageDoc, setLastMessageDoc] =
     useState<FirebaseFirestore.DocumentSnapshot | null>(null);
+  const [hasNewMessages, setHasNewMessages] = useState(false);
 
   const memoizedUser = useMemo(() => ({ _id: user.id, ...user }), [user]);
   const startDate = useMemo(() => new Date(), []);
@@ -153,6 +154,8 @@ export function CuteChat(props: CuteChatProps) {
             console.log('New messages');
             const snapshotChanges = await prepareSnapshot(snapshot, chatId);
             setMessages((old) => appendSnapshot(old, snapshotChanges));
+
+            setHasNewMessages(true);
           }
         },
         (error: Error) => console.error('Error fetching documents: ', error)
@@ -310,6 +313,8 @@ export function CuteChat(props: CuteChatProps) {
             newMessagesBannerStyles={props.newMessagesBannerStyles}
             scrollToBottomComponent={props.scrollToBottomComponent}
             scrollToBottomStyle={props.scrollToBottomStyle}
+            hasNewMessages={hasNewMessages}
+            markNewMessagesAsSeen={() => setHasNewMessages(false)}
             closeToTop={closeToTop}
             chatRef={chatListRef}
           />

@@ -7,12 +7,16 @@ type Props = {
   onNewMessagesBannerPress?: () => void;
 
   closeToTop: boolean;
+  hasNewMessages: boolean;
 };
 
 export const MiddleSection = (props: Props) => {
+  const shouldDisplayNewMessagesBanner =
+    !props.closeToTop && props.hasNewMessages;
+
   return (
     <View style={{ display: 'flex', flex: 1 }}>
-      {!props.closeToTop && props.newMessagesBannerComponent && (
+      {shouldDisplayNewMessagesBanner && props.newMessagesBannerComponent && (
         <TouchableOpacity
           onPress={props.onNewMessagesBannerPress}
           style={

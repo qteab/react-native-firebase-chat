@@ -12,10 +12,17 @@ export const ChatFooter = (props: {
   scrollToBottomStyle?: StyleProp<ViewStyle>;
 
   closeToTop: boolean;
+  hasNewMessages: boolean;
+  markNewMessagesAsSeen: () => void;
   chatRef: RefObject<FlatList<IMessage>>;
 }) => {
   const scrollToBottom = () => {
     props.chatRef.current?.scrollToOffset({ offset: 0, animated: true });
+  };
+
+  const onNewMessagesBannerPress = () => {
+    scrollToBottom();
+    props.markNewMessagesAsSeen();
   };
 
   return (
@@ -35,8 +42,9 @@ export const ChatFooter = (props: {
       <MiddleSection
         newMessagesBannerComponent={props.newMessagesBannerComponent}
         newMessagesBannerStyles={props.newMessagesBannerStyles}
-        onNewMessagesBannerPress={scrollToBottom}
+        onNewMessagesBannerPress={onNewMessagesBannerPress}
         closeToTop={props.closeToTop}
+        hasNewMessages={props.hasNewMessages}
       />
 
       <RightSection
