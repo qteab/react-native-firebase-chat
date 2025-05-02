@@ -14,8 +14,10 @@ import {
   Alert,
   FlatList,
   NativeScrollEvent,
+  StyleProp,
   TouchableOpacity,
   View,
+  ViewStyle,
 } from 'react-native';
 import type { IMessage } from 'react-native-gifted-chat';
 import { GiftedChat, GiftedChatProps } from 'react-native-gifted-chat';
@@ -29,6 +31,8 @@ interface CustomCuteChatProps {
   user: User;
   onSend?: (newMessages: IMessage[]) => void;
   setIsLoading?: (isLoading: boolean) => void;
+  newMessagesBannerComponent?: () => React.ReactNode;
+  newMessagesBannerStyles?: StyleProp<ViewStyle>;
 }
 
 interface User {
@@ -306,23 +310,55 @@ export function CuteChat(props: CuteChatProps) {
       // - New messages banner
       renderChatFooter={() => (
         <>
-          {!closeToTop && props.scrollToBottomComponent && (
-            <TouchableOpacity
-              onPress={scrollToBottom}
-              style={
-                props.scrollToBottomStyle ?? {
-                  position: 'absolute',
-                  bottom: 30,
-                  right: 20,
-                  backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                  padding: 10,
-                  borderRadius: 100,
-                }
-              }
-            >
-              {props.scrollToBottomComponent()}
-            </TouchableOpacity>
-          )}
+          <View
+            style={{
+              display: 'flex',
+              position: 'absolute',
+              flexDirection: 'row',
+              justifyContent: 'flex-start',
+              backgroundColor: 'rgba(255, 255, 255, 0.8)',
+              width: '100%',
+              height: 100,
+              bottom: 0,
+              left: 0,
+            }}
+          >
+            <View style={{ display: 'flex', flex: 1 }}></View>
+            <View style={{ display: 'flex', flex: 1 }}>
+              {!closeToTop && props.newMessagesBannerComponent && (
+                <TouchableOpacity
+                  onPress={scrollToBottom}
+                  style={
+                    props.newMessagesBannerStyles ?? {
+                      alignSelf: 'center',
+                      backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                      padding: 10,
+                      borderRadius: 100,
+                    }
+                  }
+                >
+                  {props.newMessagesBannerComponent()}
+                </TouchableOpacity>
+              )}
+            </View>
+            <View style={{ display: 'flex', flex: 1 }}>
+              {!closeToTop && props.scrollToBottomComponent && (
+                <TouchableOpacity
+                  onPress={scrollToBottom}
+                  style={
+                    props.scrollToBottomStyle ?? {
+                      alignSelf: 'flex-end',
+                      backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                      padding: 10,
+                      borderRadius: 100,
+                    }
+                  }
+                >
+                  {props.scrollToBottomComponent()}
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
           {props.renderChatFooter?.()}
         </>
       )}
