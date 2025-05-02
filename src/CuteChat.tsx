@@ -15,8 +15,6 @@ import {
   FlatList,
   NativeScrollEvent,
   StyleProp,
-  TouchableOpacity,
-  View,
   ViewStyle,
 } from 'react-native';
 import type { IMessage } from 'react-native-gifted-chat';
@@ -25,6 +23,7 @@ import { appendSnapshot } from './utils/appendSnapshot';
 import { prepareSnapshot } from './utils/prepareSnapshot';
 import { isCloseToBottom } from './utils/isCloseToBottom';
 import { isCloseToTop } from './utils/isCloseToTop';
+import { ChatFooter } from './components/ChatFooter/ChatFooter';
 
 interface CustomCuteChatProps {
   chatId: string;
@@ -59,6 +58,8 @@ export function CuteChat(props: CuteChatProps) {
 
   const memoizedUser = useMemo(() => ({ _id: user.id, ...user }), [user]);
   const startDate = useMemo(() => new Date(), []);
+
+  const chatRef = useRef<FlatList<IMessage>>(null);
 
   const setIsLoadingBool = useCallback(
     (isLoading: boolean) => {
@@ -296,12 +297,6 @@ export function CuteChat(props: CuteChatProps) {
 
   console.log('Close to top:', closeToTop);
 
-  const chatRef = useRef<FlatList<IMessage>>(null);
-
-  const scrollToBottom = () => {
-    chatRef.current?.scrollToOffset({ offset: 0, animated: true });
-  };
-
   return (
     <GiftedChat
       {...props}
@@ -310,55 +305,14 @@ export function CuteChat(props: CuteChatProps) {
       // - New messages banner
       renderChatFooter={() => (
         <>
-          <View
-            style={{
-              display: 'flex',
-              position: 'absolute',
-              flexDirection: 'row',
-              justifyContent: 'flex-start',
-              backgroundColor: 'rgba(255, 255, 255, 0.8)',
-              width: '100%',
-              height: 100,
-              bottom: 0,
-              left: 0,
-            }}
-          >
-            <View style={{ display: 'flex', flex: 1 }}></View>
-            <View style={{ display: 'flex', flex: 1 }}>
-              {!closeToTop && props.newMessagesBannerComponent && (
-                <TouchableOpacity
-                  onPress={scrollToBottom}
-                  style={
-                    props.newMessagesBannerStyles ?? {
-                      alignSelf: 'center',
-                      backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                      padding: 10,
-                      borderRadius: 100,
-                    }
-                  }
-                >
-                  {props.newMessagesBannerComponent()}
-                </TouchableOpacity>
-              )}
-            </View>
-            <View style={{ display: 'flex', flex: 1 }}>
-              {!closeToTop && props.scrollToBottomComponent && (
-                <TouchableOpacity
-                  onPress={scrollToBottom}
-                  style={
-                    props.scrollToBottomStyle ?? {
-                      alignSelf: 'flex-end',
-                      backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                      padding: 10,
-                      borderRadius: 100,
-                    }
-                  }
-                >
-                  {props.scrollToBottomComponent()}
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
+          <ChatFooter
+            newMessagesBannerComponent={props.newMessagesBannerComponent}
+            newMessagesBannerStyles={props.newMessagesBannerStyles}
+            scrollToBottomComponent={props.scrollToBottomComponent}
+            scrollToBottomStyle={props.scrollToBottomStyle}
+            closeToTop={closeToTop}
+            chatRef={chatRef}
+          />
           {props.renderChatFooter?.()}
         </>
       )}
