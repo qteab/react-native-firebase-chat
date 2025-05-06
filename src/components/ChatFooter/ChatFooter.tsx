@@ -20,7 +20,7 @@ export const ChatFooter = (props: {
     props.chatRef.current?.scrollToOffset({ offset: 0, animated: true });
   };
 
-  const onNewMessagesBannerPress = () => {
+  const scrollDownAndMarkAsRead = () => {
     scrollToBottom();
     props.markNewMessagesAsSeen();
   };
@@ -32,13 +32,13 @@ export const ChatFooter = (props: {
       <MiddleSection
         newMessagesBannerComponent={props.newMessagesBannerComponent}
         newMessagesBannerStyles={props.newMessagesBannerStyles}
-        onNewMessagesBannerPress={onNewMessagesBannerPress}
+        onNewMessagesBannerPress={scrollDownAndMarkAsRead}
         closeToTop={props.closeToTop}
         hasNewMessages={props.hasNewMessages}
       />
 
       <RightSection
-        scrollToBottom={scrollToBottom}
+        scrollToBottom={scrollDownAndMarkAsRead}
         scrollToBottomComponent={props.scrollToBottomComponent}
         scrollToBottomStyle={props.scrollToBottomStyle}
         closeToTop={props.closeToTop}
