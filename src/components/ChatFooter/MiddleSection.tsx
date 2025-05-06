@@ -1,5 +1,11 @@
 import React, { ReactNode } from 'react';
-import { StyleProp, TouchableOpacity, View, ViewStyle } from 'react-native';
+import {
+  StyleProp,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+  ViewStyle,
+} from 'react-native';
 
 type Props = {
   newMessagesBannerComponent?: () => ReactNode;
@@ -15,18 +21,11 @@ export const MiddleSection = (props: Props) => {
     !props.closeToTop && props.hasNewMessages;
 
   return (
-    <View style={{ display: 'flex', flex: 1 }}>
+    <View style={styles.container}>
       {shouldDisplayNewMessagesBanner && props.newMessagesBannerComponent && (
         <TouchableOpacity
           onPress={props.onNewMessagesBannerPress}
-          style={
-            props.newMessagesBannerStyles ?? {
-              alignSelf: 'center',
-              backgroundColor: 'rgba(255, 255, 255, 0.9)',
-              padding: 10,
-              borderRadius: 100,
-            }
-          }
+          style={props.newMessagesBannerStyles ?? styles.newMessagesBanner}
         >
           {props.newMessagesBannerComponent()}
         </TouchableOpacity>
@@ -34,3 +33,13 @@ export const MiddleSection = (props: Props) => {
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: { display: 'flex', flex: 1 },
+  newMessagesBanner: {
+    alignSelf: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    padding: 10,
+    borderRadius: 100,
+  },
+});

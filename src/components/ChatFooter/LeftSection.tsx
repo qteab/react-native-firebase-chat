@@ -1,6 +1,10 @@
 import React from 'react';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 export const LeftSection = () => {
-  return <View style={{ display: 'flex', flex: 1 }}></View>;
+  return <View style={styles.container} />;
 };
+
+const styles = StyleSheet.create({
+  container: { display: 'flex', flex: 1 },
+});

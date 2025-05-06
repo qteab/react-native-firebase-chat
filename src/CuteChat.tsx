@@ -303,9 +303,6 @@ export function CuteChat(props: CuteChatProps) {
   return (
     <GiftedChat
       {...props}
-      // TODO: Add renderChatFooter with absolute positioning to render:
-      // - Arrow back down
-      // - New messages banner
       renderChatFooter={() => (
         <>
           <ChatFooter

@@ -1,5 +1,5 @@
 import React, { ReactNode, RefObject } from 'react';
-import { FlatList, StyleProp, View, ViewStyle } from 'react-native';
+import { FlatList, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { IMessage } from 'react-native-gifted-chat';
 import { RightSection } from './RightSection';
 import { MiddleSection } from './MiddleSection';
@@ -26,17 +26,7 @@ export const ChatFooter = (props: {
   };
 
   return (
-    <View
-      style={{
-        display: 'flex',
-        position: 'absolute',
-        flexDirection: 'row',
-        justifyContent: 'flex-start',
-        width: '100%',
-        bottom: 40,
-        left: 0,
-      }}
-    >
+    <View style={styles.container}>
       <LeftSection />
 
       <MiddleSection
@@ -56,3 +46,15 @@ export const ChatFooter = (props: {
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    display: 'flex',
+    position: 'absolute',
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    width: '100%',
+    bottom: 40,
+    left: 0,
+  },
+});

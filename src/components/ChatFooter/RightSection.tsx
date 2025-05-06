@@ -1,5 +1,11 @@
 import React, { ReactNode } from 'react';
-import { StyleProp, TouchableOpacity, View, ViewStyle } from 'react-native';
+import {
+  StyleProp,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+  ViewStyle,
+} from 'react-native';
 
 type Props = {
   scrollToBottomComponent?: () => ReactNode;
@@ -10,18 +16,11 @@ type Props = {
 
 export const RightSection = (props: Props) => {
   return (
-    <View style={{ display: 'flex', flex: 1 }}>
+    <View style={styles.container}>
       {!props.closeToTop && props.scrollToBottomComponent && (
         <TouchableOpacity
           onPress={props.scrollToBottom}
-          style={
-            props.scrollToBottomStyle ?? {
-              alignSelf: 'flex-end',
-              backgroundColor: 'rgba(255, 255, 255, 0.9)',
-              padding: 10,
-              borderRadius: 100,
-            }
-          }
+          style={props.scrollToBottomStyle ?? styles.scrollToBottom}
         >
           {props.scrollToBottomComponent()}
         </TouchableOpacity>
@@ -29,3 +28,13 @@ export const RightSection = (props: Props) => {
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: { display: 'flex', flex: 1 },
+  scrollToBottom: {
+    alignSelf: 'flex-end',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    padding: 10,
+    borderRadius: 100,
+  },
+});
