@@ -7,20 +7,31 @@ import React, {
   useEffect,
   useLayoutEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
-import { Alert, NativeScrollEvent } from 'react-native';
+import {
+  Alert,
+  FlatList,
+  NativeScrollEvent,
+  StyleProp,
+  ViewStyle,
+} from 'react-native';
 import type { IMessage } from 'react-native-gifted-chat';
 import { GiftedChat, GiftedChatProps } from 'react-native-gifted-chat';
 import { appendSnapshot } from './utils/appendSnapshot';
 import { prepareSnapshot } from './utils/prepareSnapshot';
 import { isCloseToBottom } from './utils/isCloseToBottom';
+import { isCloseToTop } from './utils/isCloseToTop';
+import { ChatFooter } from './components/ChatFooter/ChatFooter';
 
 interface CustomCuteChatProps {
   chatId: string;
   user: User;
   onSend?: (newMessages: IMessage[]) => void;
   setIsLoading?: (isLoading: boolean) => void;
+  newMessagesBannerComponent?: () => React.ReactNode;
+  newMessagesBannerStyles?: StyleProp<ViewStyle>;
 }
 
 interface User {
@@ -38,14 +49,18 @@ const messageBatch = 20;
 export function CuteChat(props: CuteChatProps) {
   const { chatId, user, setIsLoading } = props;
 
+  const [closeToTop, setCloseToTop] = useState(true);
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [initializing, setInitializing] = useState(true);
   const [lastMessageDoc, setLastMessageDoc] =
     useState<FirebaseFirestore.DocumentSnapshot | null>(null);
+  const [hasNewMessages, setHasNewMessages] = useState(false);
 
   const memoizedUser = useMemo(() => ({ _id: user.id, ...user }), [user]);
   const startDate = useMemo(() => new Date(), []);
+
+  const chatListRef = useRef<FlatList<IMessage>>(null);
 
   const setIsLoadingBool = useCallback(
     (isLoading: boolean) => {
@@ -139,6 +154,8 @@ export function CuteChat(props: CuteChatProps) {
             console.log('New messages');
             const snapshotChanges = await prepareSnapshot(snapshot, chatId);
             setMessages((old) => appendSnapshot(old, snapshotChanges));
+
+            setHasNewMessages(true);
           }
         },
         (error: Error) => console.error('Error fetching documents: ', error)
@@ -281,16 +298,37 @@ export function CuteChat(props: CuteChatProps) {
 
   console.log('Amount of msgs:', messages.length);
 
+  console.log('Close to top:', closeToTop);
+
   return (
     <GiftedChat
       {...props}
+      renderChatFooter={() => (
+        <>
+          <ChatFooter
+            newMessagesBannerComponent={props.newMessagesBannerComponent}
+            newMessagesBannerStyles={props.newMessagesBannerStyles}
+            scrollToBottomComponent={props.scrollToBottomComponent}
+            scrollToBottomStyle={props.scrollToBottomStyle}
+            hasNewMessages={hasNewMessages}
+            markNewMessagesAsSeen={() => setHasNewMessages(false)}
+            closeToTop={closeToTop}
+            chatRef={chatListRef}
+          />
+          {props.renderChatFooter?.()}
+        </>
+      )}
       messages={messages}
       onSend={props.onSend || onSend}
       user={memoizedUser}
       inverted={true}
       listViewProps={{
+        ref: chatListRef,
         onScroll: ({ nativeEvent }: { nativeEvent: NativeScrollEvent }) => {
           if (isCloseToBottom(nativeEvent)) fetchMoreMessages();
+
+          if (isCloseToTop(nativeEvent)) setCloseToTop(true);
+          else setCloseToTop(false);
         },
         scrollEventThrottle: 500,
       }}
