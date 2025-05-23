@@ -16,6 +16,7 @@ import {
   NativeScrollEvent,
   StyleProp,
   ViewStyle,
+  ScrollViewProps,
 } from 'react-native';
 import type { IMessage } from 'react-native-gifted-chat';
 import { GiftedChat, GiftedChatProps } from 'react-native-gifted-chat';
@@ -32,6 +33,7 @@ interface CustomCuteChatProps {
   setIsLoading?: (isLoading: boolean) => void;
   newMessagesBannerComponent?: () => React.ReactNode;
   newMessagesBannerStyles?: StyleProp<ViewStyle>;
+  maintainVisibleContentPosition?: ScrollViewProps['maintainVisibleContentPosition'];
 }
 
 interface User {
@@ -331,6 +333,7 @@ export function CuteChat(props: CuteChatProps) {
           else setCloseToTop(false);
         },
         scrollEventThrottle: 500,
+        maintainVisibleContentPosition: props.maintainVisibleContentPosition,
       }}
     />
   );
