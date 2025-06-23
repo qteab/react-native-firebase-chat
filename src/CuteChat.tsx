@@ -1,6 +1,14 @@
-import firestore, {
-  FirebaseFirestoreTypes as FirebaseFirestore,
-  firebase,
+import {
+  arrayUnion,
+  collection,
+  doc,
+  FirebaseFirestoreTypes,
+  getFirestore,
+  limit,
+  onSnapshot,
+  orderBy,
+  query,
+  startAfter,
 } from '@react-native-firebase/firestore';
 import React, {
   useCallback,
@@ -56,7 +64,7 @@ export function CuteChat(props: CuteChatProps) {
   const [loading, setLoading] = useState(false);
   const [initializing, setInitializing] = useState(true);
   const [lastMessageDoc, setLastMessageDoc] =
-    useState<FirebaseFirestore.DocumentSnapshot | null>(null);
+    useState<FirebaseFirestoreTypes.DocumentData | null>(null);
   const [hasNewMessages, setHasNewMessages] = useState(false);
 
   const memoizedUser = useMemo(() => ({ _id: user.id, ...user }), [user]);
@@ -79,24 +87,23 @@ export function CuteChat(props: CuteChatProps) {
       );
 
       if (unreadMessages.length > 0) {
-        const batch = firestore().batch();
+        const batch = getFirestore().batch();
 
         unreadMessages.forEach((message) => {
-          const messageRef = firestore()
-            .collection(`chats/${chatId}/messages`)
-            .doc(message._id as string);
+          const messageRef = doc(
+            getFirestore(),
+            `chats/${chatId}/messages/${message._id}`
+          );
 
           batch.update(messageRef, {
-            readByIds: firebase.firestore.FieldValue.arrayUnion(
-              memoizedUser._id
-            ),
+            readByIds: arrayUnion(memoizedUser._id),
           });
         });
 
         batch.commit();
       }
 
-      const chatRef = firestore().doc(`chats/${chatId}`);
+      const chatRef = doc(getFirestore(), `chats/${chatId}`);
       const chatData = await chatRef.get();
       const chat = chatData.data();
 
@@ -106,9 +113,7 @@ export function CuteChat(props: CuteChatProps) {
 
       if (!chat.lastMessage.readByIds.includes(memoizedUser._id)) {
         chatRef.update({
-          'lastMessage.readByIds': firebase.firestore.FieldValue.arrayUnion(
-            memoizedUser._id
-          ),
+          'lastMessage.readByIds': arrayUnion(memoizedUser._id),
         });
       }
     },
@@ -118,50 +123,58 @@ export function CuteChat(props: CuteChatProps) {
   // Fetch initial messages and subscribe to potential future messages
   useLayoutEffect(() => {
     setIsLoadingBool(true);
-    const messagesRef = firestore().collection(`chats/${chatId}/messages`);
+    const messagesRef = collection(getFirestore(), `chats/${chatId}/messages`);
 
-    const unsubscribeOldMessages = messagesRef
-      .orderBy('createdAt', 'desc')
-      .startAfter(startDate.toISOString())
-      .limit(messageBatch)
-      .onSnapshot(
-        async (snapshot: FirebaseFirestore.QuerySnapshot) => {
-          if (snapshot.empty) {
-            setLastMessageDoc(null);
+    const oldMessagesQuery = query(
+      messagesRef,
+      orderBy('createdAt', 'desc'),
+      startAfter(startDate.toISOString()),
+      limit(messageBatch)
+    );
 
-            setMessages([]);
-            setIsLoadingBool(false);
-            setInitializing(false);
+    const unsubscribeOldMessages = onSnapshot(
+      oldMessagesQuery,
+      async (snapshot) => {
+        if (snapshot.empty) {
+          setLastMessageDoc(null);
 
-            markMessagesAsRead([]);
-          }
+          setMessages([]);
+          setIsLoadingBool(false);
+          setInitializing(false);
 
-          if (!snapshot.empty) {
-            const snapshotChanges = await prepareSnapshot(snapshot, chatId);
-            setMessages((old) => appendSnapshot(old, snapshotChanges));
+          markMessagesAsRead([]);
+        }
 
-            setIsLoadingBool(false);
-            setInitializing(false);
-          }
-        },
-        (error: Error) => console.error('Error fetching documents: ', error)
-      );
+        if (!snapshot.empty) {
+          const snapshotChanges = await prepareSnapshot(snapshot, chatId);
+          setMessages((old) => appendSnapshot(old, snapshotChanges));
 
-    const unsubscribeNewMessages = messagesRef
-      .orderBy('createdAt', 'asc')
-      .startAfter(startDate.toISOString())
-      .onSnapshot(
-        async (snapshot: FirebaseFirestore.QuerySnapshot) => {
-          if (!snapshot.empty) {
-            console.log('New messages');
-            const snapshotChanges = await prepareSnapshot(snapshot, chatId);
-            setMessages((old) => appendSnapshot(old, snapshotChanges));
+          setIsLoadingBool(false);
+          setInitializing(false);
+        }
+      },
+      (error: Error) => console.error('Error fetching documents: ', error)
+    );
 
-            setHasNewMessages(true);
-          }
-        },
-        (error: Error) => console.error('Error fetching documents: ', error)
-      );
+    const newMessagesQuery = query(
+      messagesRef,
+      orderBy('createdAt', 'asc'),
+      startAfter(startDate.toISOString())
+    );
+
+    const unsubscribeNewMessages = onSnapshot(
+      newMessagesQuery,
+      async (snapshot) => {
+        if (!snapshot.empty) {
+          console.log('New messages');
+          const snapshotChanges = await prepareSnapshot(snapshot, chatId);
+          setMessages((old) => appendSnapshot(old, snapshotChanges));
+
+          setHasNewMessages(true);
+        }
+      },
+      (error: Error) => console.error('Error fetching documents: ', error)
+    );
 
     return () => {
       unsubscribeOldMessages();
@@ -186,7 +199,7 @@ export function CuteChat(props: CuteChatProps) {
         return;
       }
 
-      const senderRef = firestore().doc(`users/${sender._id}`);
+      const senderRef = doc(getFirestore(), `users/${sender._id}`);
       const createdAtIso = createdAt.toISOString();
       const updatedAtIso = new Date().toISOString(); // current time
 
@@ -196,7 +209,7 @@ export function CuteChat(props: CuteChatProps) {
         updatedAt: updatedAtIso,
         senderId: sender._id,
         senderRef,
-        readByIds: firebase.firestore.FieldValue.arrayUnion(sender._id),
+        readByIds: arrayUnion(sender._id),
       };
 
       // only include the text field if it's not undefined
@@ -210,12 +223,13 @@ export function CuteChat(props: CuteChatProps) {
       }
 
       try {
-        const messageRef = await firestore()
-          .collection(`chats/${chatId}/messages`)
-          .add(messageData);
+        const messageRef = collection(
+          getFirestore(),
+          `chats/${chatId}/messages`
+        ).add(messageData);
 
         // Update lastMessage field in the chat document
-        await firestore().doc(`chats/${chatId}`).update({
+        doc(getFirestore(), `chats/${chatId}`).update({
           lastMessage: messageRef,
           updatedAt: updatedAtIso,
         });
@@ -246,22 +260,28 @@ export function CuteChat(props: CuteChatProps) {
     setIsLoadingBool(true);
     try {
       console.log('Fetching more messages...');
-      const messagesRef = firestore().collection(`chats/${chatId}/messages`);
-      messagesRef
-        .orderBy('createdAt', 'desc')
-        .startAfter(lastMessageDoc)
-        .limit(messageBatch)
-        .onSnapshot(async (snapshot) => {
-          console.log('Messages received');
-          if (!snapshot.empty) {
-            const snapshotChanges = await prepareSnapshot(snapshot, chatId);
-            setMessages((old) => appendSnapshot(old, snapshotChanges));
-          } else {
-            console.log('Snapshot empty');
-          }
+      const messagesRef = collection(
+        getFirestore(),
+        `chats/${chatId}/messages`
+      );
+      const moreMessagesQuery = query(
+        messagesRef,
+        orderBy('createdAt', 'desc'),
+        startAfter(lastMessageDoc),
+        limit(messageBatch)
+      );
 
-          setIsLoadingBool(false);
-        });
+      onSnapshot(moreMessagesQuery, async (snapshot) => {
+        console.log('Messages received');
+        if (!snapshot.empty) {
+          const snapshotChanges = await prepareSnapshot(snapshot, chatId);
+          setMessages((old) => appendSnapshot(old, snapshotChanges));
+        } else {
+          console.log('Snapshot empty');
+        }
+
+        setIsLoadingBool(false);
+      });
     } catch (error) {
       console.error('Error fetching more messages: ', error);
     }
@@ -283,11 +303,12 @@ export function CuteChat(props: CuteChatProps) {
       }
 
       console.log('Last message: ', lastMessage);
-      const lastMessageRef = firestore().doc(
+      const lastMessageRef = doc(
+        getFirestore(),
         `chats/${chatId}/messages/${lastMessage._id}`
       );
 
-      const unsubscribe = lastMessageRef.onSnapshot(async (snapshot) => {
+      const unsubscribe = onSnapshot(lastMessageRef, async (snapshot) => {
         setLastMessageDoc(snapshot);
       });
 

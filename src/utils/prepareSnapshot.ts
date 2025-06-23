@@ -1,9 +1,9 @@
-import { FirebaseFirestoreTypes as FirebaseFirestore } from '@react-native-firebase/firestore';
+import { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
 import { docToMessage } from './docToMessage';
 import { IMessage } from 'react-native-gifted-chat';
 
 export type SnapshotChange = {
-  type: FirebaseFirestore.DocumentChangeType;
+  type: FirebaseFirestoreTypes.DocumentChangeType;
   message: IMessage;
 };
 
@@ -11,7 +11,7 @@ export type SnapshotChange = {
  * Prepares snapshot changes for internal usage.
  */
 export const prepareSnapshot = async (
-  snapshot: FirebaseFirestore.QuerySnapshot,
+  snapshot: FirebaseFirestoreTypes.QuerySnapshot,
   chatId: string
 ): Promise<SnapshotChange[]> => {
   console.log('Preparing snapshot');

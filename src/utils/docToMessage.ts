@@ -1,5 +1,10 @@
-import firestore, {
-  FirebaseFirestoreTypes as FirebaseFirestore,
+import {
+  collection,
+  doc,
+  FirebaseFirestoreTypes,
+  getDoc,
+  getDocs,
+  getFirestore,
 } from '@react-native-firebase/firestore';
 import type { IMessage } from 'react-native-gifted-chat';
 
@@ -7,18 +12,23 @@ import type { IMessage } from 'react-native-gifted-chat';
  * Utility function to convert a Firestore document to a `GiftedChat` message.
  */
 export const docToMessage = async (
-  doc: FirebaseFirestore.QueryDocumentSnapshot,
+  document: FirebaseFirestoreTypes.QueryDocumentSnapshot,
   chatId: string
 ): Promise<IMessage> => {
-  const data = doc.data();
+  const data = document.data();
 
   if (!data) {
     throw new Error('Document data is undefined');
   }
 
   const [files, sender] = await Promise.all([
-    firestore().collection(`chats/${chatId}/messages/${doc.id}/files`).get(),
-    firestore().doc(data.senderRef._documentPath._parts.join('/')).get(),
+    getDocs(
+      collection(
+        getFirestore(),
+        `chats/${chatId}/messages/${document.id}/files`
+      )
+    ),
+    getDoc(doc(getFirestore(), data.senderRef._documentPath._parts.join('/'))),
   ]);
 
   const image = files?.docs[0]?.data().url;
@@ -26,7 +36,7 @@ export const docToMessage = async (
   // Fetch user data from reference
   if (sender) {
     return {
-      _id: doc.id,
+      _id: document.id,
       createdAt: new Date(data.createdAt),
       text: data.content,
       user: { _id: data.senderId, ...sender },
@@ -36,7 +46,7 @@ export const docToMessage = async (
     };
   } else {
     return {
-      _id: doc.id,
+      _id: document.id,
       createdAt: new Date(data.createdAt),
       text: data.content,
       image: image,
