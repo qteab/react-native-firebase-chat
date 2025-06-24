@@ -78,11 +78,13 @@ export const CuteChat = React.forwardRef<CuteChatRef, CuteChatProps>(function (
   const [lastMessageDoc, setLastMessageDoc] =
     useState<FirebaseFirestoreTypes.DocumentData | null>(null);
   const [hasNewMessages, setHasNewMessages] = useState(false);
+  const [scrollToIndex, setScrollToIndex] = useState<number | null>(null);
 
   const memoizedUser = useMemo(() => ({ _id: user.id, ...user }), [user]);
   const startDate = useMemo(() => new Date(), []);
 
   const chatListRef = useRef<FlatList<IMessage>>(null);
+  const timeout = React.useRef<ReturnType<typeof setTimeout>>();
 
   const setIsLoadingBool = useCallback(
     (isLoading: boolean) => {
@@ -351,6 +353,7 @@ export const CuteChat = React.forwardRef<CuteChatRef, CuteChatProps>(function (
 
           if (newMessageIndex !== -1) {
             console.log('New message found at index:', newMessageIndex);
+            setScrollToIndex(newMessageIndex);
             chatListRef.current?.scrollToIndex({
               index: newMessageIndex,
               animated: true,
@@ -406,6 +409,11 @@ export const CuteChat = React.forwardRef<CuteChatRef, CuteChatProps>(function (
     };
   });
 
+  // Clear the timeout if it still exists when the component unmounts.
+  React.useEffect(() => {
+    return () => timeout.current && clearTimeout(timeout.current);
+  }, []);
+
   return (
     <GiftedChat
       {...props}
@@ -439,13 +447,31 @@ export const CuteChat = React.forwardRef<CuteChatRef, CuteChatProps>(function (
         scrollEventThrottle: 500,
         maintainVisibleContentPosition: props.maintainVisibleContentPosition,
         getItemLayout: props.getItemLayout,
-        onScrollToIndexFailed: (info: { index: number }) => {
-          setTimeout(() => {
-            chatListRef.current?.scrollToIndex({
-              index: info.index,
-              animated: true,
-            });
-          }, 100); // Delay to allow the list to render
+        onScrollToIndexFailed: (info: {
+          index: number;
+          highestMeasuredFrameIndex: number;
+          averageItemLength: number;
+        }) => {
+          console.log('onScrollToIndexFailed', info);
+
+          // Calculate the possible position of the item and scroll there using the internal scroll responder.
+          const offset = info.averageItemLength * info.index;
+          chatListRef.current?.scrollToOffset({
+            animated: true,
+            offset: offset,
+          });
+
+          // If we know exactly where we want to scroll to, we can just scroll now since the item is likely visible.
+          // Otherwise it'll call this function recursively again.
+          if (scrollToIndex) {
+            timeout.current = setTimeout(() => {
+              console.log('Retrying scroll to index:', scrollToIndex);
+              chatListRef.current?.scrollToIndex({
+                index: scrollToIndex,
+                animated: true,
+              });
+            }, 100);
+          }
         },
       }}
     />
