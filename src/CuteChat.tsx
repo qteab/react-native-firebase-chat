@@ -2,7 +2,9 @@ import {
   arrayUnion,
   collection,
   doc,
+  endAt,
   FirebaseFirestoreTypes,
+  getDoc,
   getFirestore,
   limit,
   onSnapshot,
@@ -13,6 +15,7 @@ import {
 import React, {
   useCallback,
   useEffect,
+  useImperativeHandle,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -25,6 +28,7 @@ import {
   StyleProp,
   ViewStyle,
   ScrollViewProps,
+  FlatListProps,
 } from 'react-native';
 import type { IMessage } from 'react-native-gifted-chat';
 import { GiftedChat, GiftedChatProps } from 'react-native-gifted-chat';
@@ -42,6 +46,7 @@ interface CustomCuteChatProps {
   newMessagesBannerComponent?: () => React.ReactNode;
   newMessagesBannerStyles?: StyleProp<ViewStyle>;
   maintainVisibleContentPosition?: ScrollViewProps['maintainVisibleContentPosition'];
+  getItemLayout?: FlatListProps<IMessage>['getItemLayout'];
 }
 
 interface User {
@@ -54,9 +59,16 @@ interface User {
 type CuteChatProps = Omit<GiftedChatProps, 'messages' | 'user' | 'onSend'> &
   CustomCuteChatProps;
 
+type CuteChatRef = {
+  scrollToMessage: (messageId: string) => Promise<void>;
+};
+
 const messageBatch = 20;
 
-export function CuteChat(props: CuteChatProps) {
+export const CuteChat = React.forwardRef<CuteChatRef, CuteChatProps>(function (
+  props,
+  ref
+) {
   const { chatId, user, setIsLoading } = props;
 
   const [closeToTop, setCloseToTop] = useState(true);
@@ -287,6 +299,75 @@ export function CuteChat(props: CuteChatProps) {
     }
   }, [chatId, lastMessageDoc, setIsLoadingBool, initializing, loading]);
 
+  const scrollToMessage = useCallback(
+    async (messageId: string) => {
+      console.log('Scrolling to message:', messageId);
+
+      const messageIndex = messages.findIndex(
+        (message) => message._id === messageId
+      );
+
+      if (messageIndex !== -1) {
+        console.log('Message found at index:', messageIndex);
+        chatListRef.current?.scrollToIndex({
+          index: messageIndex,
+          animated: true,
+        });
+
+        return;
+      }
+
+      console.warn(
+        `Message with ID ${messageId} not found in messages. Fetching message`
+      );
+
+      const messageRef = doc(
+        getFirestore(),
+        `chats/${chatId}/messages/${messageId}`
+      );
+
+      const messageSnapshot = await getDoc(messageRef);
+      const messageData = messageSnapshot.data();
+
+      const scrollToMessageQuery = query(
+        collection(getFirestore(), `chats/${chatId}/messages`),
+        orderBy('createdAt', 'desc'),
+        startAfter(lastMessageDoc),
+        endAt(messageData?.createdAt)
+      );
+
+      onSnapshot(scrollToMessageQuery, async (snapshot) => {
+        if (!snapshot.empty) {
+          const snapshotChanges = await prepareSnapshot(snapshot, chatId);
+          let newMessageIndex = -1;
+          setMessages((old) => {
+            const newMessages = appendSnapshot(old, snapshotChanges);
+            newMessageIndex = newMessages.findIndex(
+              (message) => message._id === messageId
+            );
+            console.log('Message index after fetching:', newMessageIndex);
+            return newMessages;
+          });
+
+          if (newMessageIndex !== -1) {
+            console.log('New message found at index:', newMessageIndex);
+            chatListRef.current?.scrollToIndex({
+              index: newMessageIndex,
+              animated: true,
+            });
+          } else {
+            console.warn(
+              `New message with ID ${messageId} not found in messages after fetching`
+            );
+          }
+        } else {
+          console.warn('No messages found after fetching');
+        }
+      });
+    },
+    [lastMessageDoc, messages, chatId]
+  );
+
   // Keep `lastMessageDoc` up to date based on `messages`
   useEffect(() => {
     if (!messages.length) {
@@ -319,9 +400,11 @@ export function CuteChat(props: CuteChatProps) {
     }
   }, [messages, chatId]);
 
-  console.log('Amount of msgs:', messages.length);
-
-  console.log('Close to top:', closeToTop);
+  useImperativeHandle(ref, () => {
+    return {
+      scrollToMessage,
+    };
+  });
 
   return (
     <GiftedChat
@@ -355,7 +438,16 @@ export function CuteChat(props: CuteChatProps) {
         },
         scrollEventThrottle: 500,
         maintainVisibleContentPosition: props.maintainVisibleContentPosition,
+        getItemLayout: props.getItemLayout,
+        onScrollToIndexFailed: (info: { index: number }) => {
+          setTimeout(() => {
+            chatListRef.current?.scrollToIndex({
+              index: info.index,
+              animated: true,
+            });
+          }, 100); // Delay to allow the list to render
+        },
       }}
     />
   );
-}
+});
