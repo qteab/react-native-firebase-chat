@@ -1,9 +1,10 @@
 import React, { ReactNode, RefObject } from 'react';
-import { FlatList, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
-import { IMessage } from 'react-native-gifted-chat';
+import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { RightSection } from './RightSection';
 import { MiddleSection } from './MiddleSection';
 import { LeftSection } from './LeftSection';
+import { FlashListRef } from '@shopify/flash-list';
+import { IMessage } from 'react-native-gifted-chat';
 
 export const ChatFooter = (props: {
   newMessagesBannerComponent?: () => ReactNode;
@@ -11,13 +12,13 @@ export const ChatFooter = (props: {
   scrollToBottomComponent?: () => ReactNode;
   scrollToBottomStyle?: StyleProp<ViewStyle>;
 
-  closeToTop: boolean;
+  closeToBottom: boolean;
   hasNewMessages: boolean;
   markNewMessagesAsSeen: () => void;
-  chatRef: RefObject<FlatList<IMessage>>;
+  chatRef: RefObject<FlashListRef<IMessage>>;
 }) => {
   const scrollToBottom = () => {
-    props.chatRef.current?.scrollToOffset({ offset: 0, animated: true });
+    props.chatRef.current?.scrollToEnd();
   };
 
   const scrollDownAndMarkAsRead = () => {
@@ -33,7 +34,7 @@ export const ChatFooter = (props: {
         newMessagesBannerComponent={props.newMessagesBannerComponent}
         newMessagesBannerStyles={props.newMessagesBannerStyles}
         onNewMessagesBannerPress={scrollDownAndMarkAsRead}
-        closeToTop={props.closeToTop}
+        closeToBottom={props.closeToBottom}
         hasNewMessages={props.hasNewMessages}
       />
 
@@ -41,7 +42,7 @@ export const ChatFooter = (props: {
         scrollToBottom={scrollDownAndMarkAsRead}
         scrollToBottomComponent={props.scrollToBottomComponent}
         scrollToBottomStyle={props.scrollToBottomStyle}
-        closeToTop={props.closeToTop}
+        closeToBottom={props.closeToBottom}
       />
     </View>
   );
