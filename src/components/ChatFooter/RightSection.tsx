@@ -11,13 +11,13 @@ type Props = {
   scrollToBottomComponent?: () => ReactNode;
   scrollToBottomStyle?: StyleProp<ViewStyle>;
   scrollToBottom?: () => void;
-  closeToTop: boolean;
+  closeToBottom: boolean;
 };
 
 export const RightSection = (props: Props) => {
   return (
     <View style={styles.container}>
-      {!props.closeToTop && props.scrollToBottomComponent && (
+      {!props.closeToBottom && props.scrollToBottomComponent && (
         <TouchableOpacity
           onPress={props.scrollToBottom}
           style={props.scrollToBottomStyle ?? styles.scrollToBottom}

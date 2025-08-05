@@ -12,6 +12,7 @@ import {
   query,
   startAfter,
 } from '@react-native-firebase/firestore';
+import { FlashListRef } from '@shopify/flash-list';
 import React, {
   useCallback,
   useEffect,
@@ -21,22 +22,13 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import {
-  Alert,
-  FlatList,
-  NativeScrollEvent,
-  StyleProp,
-  ViewStyle,
-  ScrollViewProps,
-  FlatListProps,
-} from 'react-native';
-import type { IMessage } from 'react-native-gifted-chat';
-import { GiftedChat, GiftedChatProps } from 'react-native-gifted-chat';
-import { appendSnapshot } from './utils/appendSnapshot';
-import { prepareSnapshot } from './utils/prepareSnapshot';
-import { isCloseToBottom } from './utils/isCloseToBottom';
-import { isCloseToTop } from './utils/isCloseToTop';
+import { Alert, StyleProp, ViewStyle } from 'react-native';
+import { GiftedChat, IMessage } from 'react-native-gifted-chat';
+import { GiftedChatProps } from 'react-native-gifted-chat/lib/GiftedChat/types';
 import { ChatFooter } from './components/ChatFooter/ChatFooter';
+import { appendSnapshot } from './utils/appendSnapshot';
+import { isCloseToBottom } from './utils/isCloseToBottom';
+import { prepareSnapshot } from './utils/prepareSnapshot';
 
 interface CustomCuteChatProps {
   chatId: string;
@@ -45,8 +37,6 @@ interface CustomCuteChatProps {
   setIsLoading?: (isLoading: boolean) => void;
   newMessagesBannerComponent?: () => React.ReactNode;
   newMessagesBannerStyles?: StyleProp<ViewStyle>;
-  maintainVisibleContentPosition?: ScrollViewProps['maintainVisibleContentPosition'];
-  getItemLayout?: FlatListProps<IMessage>['getItemLayout'];
 }
 
 interface User {
@@ -56,10 +46,13 @@ interface User {
   avatar: string;
 }
 
-type CuteChatProps = Omit<GiftedChatProps, 'messages' | 'user' | 'onSend'> &
+export type CuteChatProps = Omit<
+  GiftedChatProps<IMessage>,
+  'messages' | 'user' | 'onSend'
+> &
   CustomCuteChatProps;
 
-type CuteChatRef = {
+export type CuteChatRef = {
   scrollToMessage: (messageId: string) => Promise<void>;
 };
 
@@ -71,19 +64,23 @@ export const CuteChat = React.forwardRef<CuteChatRef, CuteChatProps>(function (
 ) {
   const { chatId, user, setIsLoading } = props;
 
-  const [closeToTop, setCloseToTop] = useState(true);
+  const [closeToBottom, setCloseToBottom] = useState(true);
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [initializing, setInitializing] = useState(true);
   const [lastMessageDoc, setLastMessageDoc] =
     useState<FirebaseFirestoreTypes.DocumentData | null>(null);
   const [hasNewMessages, setHasNewMessages] = useState(false);
-  const [scrollToIndex, setScrollToIndex] = useState<number | null>(null);
+  const [scrollToMessageId, setScrollToMessageId] = useState<string | null>(
+    null
+  );
+  const [isLoadingEarlier, setIsLoadingEarlier] = useState(false);
+  const [allMessagesLoaded, setAllMessagesLoaded] = useState(false);
 
   const memoizedUser = useMemo(() => ({ _id: user.id, ...user }), [user]);
   const startDate = useMemo(() => new Date(), []);
 
-  const chatListRef = useRef<FlatList<IMessage>>(null);
+  const chatListRef = useRef<FlashListRef<IMessage>>(null);
   const timeout = React.useRef<ReturnType<typeof setTimeout>>();
 
   const setIsLoadingBool = useCallback(
@@ -271,7 +268,7 @@ export const CuteChat = React.forwardRef<CuteChatRef, CuteChatProps>(function (
       );
     }
 
-    setIsLoadingBool(true);
+    setIsLoadingEarlier(true);
     try {
       console.log('Fetching more messages...');
       const messagesRef = collection(
@@ -292,28 +289,27 @@ export const CuteChat = React.forwardRef<CuteChatRef, CuteChatProps>(function (
           setMessages((old) => appendSnapshot(old, snapshotChanges));
         } else {
           console.log('Snapshot empty');
+          setAllMessagesLoaded(true);
         }
-
-        setIsLoadingBool(false);
       });
     } catch (error) {
       console.error('Error fetching more messages: ', error);
+    } finally {
+      setIsLoadingEarlier(false);
     }
-  }, [chatId, lastMessageDoc, setIsLoadingBool, initializing, loading]);
+  }, [chatId, lastMessageDoc, setIsLoadingEarlier, initializing, loading]);
 
   const scrollToMessage = useCallback(
     async (messageId: string) => {
       console.log('Scrolling to message:', messageId);
 
-      const messageIndex = messages.findIndex(
-        (message) => message._id === messageId
-      );
+      const message = messages.find((m) => m._id === messageId);
 
-      if (messageIndex !== -1) {
-        console.log('Message found at index:', messageIndex);
-        chatListRef.current?.scrollToIndex({
-          index: messageIndex,
-          animated: true,
+      if (message !== undefined) {
+        console.log('Message found:', message);
+        chatListRef.current?.scrollToItem({
+          item: message,
+          viewPosition: 0.5, // Center the item in the view
         });
 
         return;
@@ -341,28 +337,13 @@ export const CuteChat = React.forwardRef<CuteChatRef, CuteChatProps>(function (
       onSnapshot(scrollToMessageQuery, async (snapshot) => {
         if (!snapshot.empty) {
           const snapshotChanges = await prepareSnapshot(snapshot, chatId);
-          let newMessageIndex = -1;
           setMessages((old) => {
             const newMessages = appendSnapshot(old, snapshotChanges);
-            newMessageIndex = newMessages.findIndex(
-              (message) => message._id === messageId
-            );
-            console.log('Message index after fetching:', newMessageIndex);
             return newMessages;
           });
 
-          if (newMessageIndex !== -1) {
-            console.log('New message found at index:', newMessageIndex);
-            setScrollToIndex(newMessageIndex);
-            chatListRef.current?.scrollToIndex({
-              index: newMessageIndex,
-              animated: true,
-            });
-          } else {
-            console.warn(
-              `New message with ID ${messageId} not found in messages after fetching`
-            );
-          }
+          console.log('Setting scrollToMessageId:', messageId);
+          setScrollToMessageId(messageId);
         } else {
           console.warn('No messages found after fetching');
         }
@@ -409,6 +390,36 @@ export const CuteChat = React.forwardRef<CuteChatRef, CuteChatProps>(function (
     };
   });
 
+  useEffect(() => {
+    console.log('scrollToMessageId changed:', scrollToMessageId);
+    if (scrollToMessageId === null || chatListRef.current === null) {
+      return;
+    }
+
+    // Clear any existing timeout to prevent multiple scrolls
+    if (timeout.current) {
+      clearTimeout(timeout.current);
+    }
+
+    const message = messages.find((msg) => msg._id === scrollToMessageId);
+
+    if (!message) {
+      console.warn(`Message with ID ${scrollToMessageId} not found.`);
+      setScrollToMessageId(null);
+      return;
+    }
+
+    // Use a timeout to ensure the scroll happens after the component has rendered
+    timeout.current = setTimeout(() => {
+      console.log('Scrolling to message', message);
+      chatListRef.current?.scrollToItem({
+        item: message,
+        viewPosition: 0.5, // Center the item in the view
+      });
+      setScrollToMessageId(null); // Reset after scrolling
+    }, 500);
+  }, [scrollToMessageId, messages]);
+
   // Clear the timeout if it still exists when the component unmounts.
   React.useEffect(() => {
     return () => timeout.current && clearTimeout(timeout.current);
@@ -426,7 +437,7 @@ export const CuteChat = React.forwardRef<CuteChatRef, CuteChatProps>(function (
             scrollToBottomStyle={props.scrollToBottomStyle}
             hasNewMessages={hasNewMessages}
             markNewMessagesAsSeen={() => setHasNewMessages(false)}
-            closeToTop={closeToTop}
+            closeToBottom={closeToBottom}
             chatRef={chatListRef}
           />
           {props.renderChatFooter?.()}
@@ -435,44 +446,14 @@ export const CuteChat = React.forwardRef<CuteChatRef, CuteChatProps>(function (
       messages={messages}
       onSend={props.onSend || onSend}
       user={memoizedUser}
+      messageContainerRef={chatListRef}
+      onLoadEarlier={fetchMoreMessages}
+      loadEarlier={!allMessagesLoaded}
+      infiniteScroll={true}
+      isLoadingEarlier={isLoadingEarlier}
       inverted={true}
-      listViewProps={{
-        ref: chatListRef,
-        onScroll: ({ nativeEvent }: { nativeEvent: NativeScrollEvent }) => {
-          if (isCloseToBottom(nativeEvent)) fetchMoreMessages();
-
-          if (isCloseToTop(nativeEvent)) setCloseToTop(true);
-          else setCloseToTop(false);
-        },
-        scrollEventThrottle: 500,
-        maintainVisibleContentPosition: props.maintainVisibleContentPosition,
-        getItemLayout: props.getItemLayout,
-        onScrollToIndexFailed: (info: {
-          index: number;
-          highestMeasuredFrameIndex: number;
-          averageItemLength: number;
-        }) => {
-          console.log('onScrollToIndexFailed', info);
-
-          // Calculate the possible position of the item and scroll there using the internal scroll responder.
-          const offset = info.averageItemLength * info.index;
-          chatListRef.current?.scrollToOffset({
-            animated: true,
-            offset: offset,
-          });
-
-          // If we know exactly where we want to scroll to, we can just scroll now since the item is likely visible.
-          // Otherwise it'll call this function recursively again.
-          if (scrollToIndex) {
-            timeout.current = setTimeout(() => {
-              console.log('Retrying scroll to index:', scrollToIndex);
-              chatListRef.current?.scrollToIndex({
-                index: scrollToIndex,
-                animated: true,
-              });
-            }, 100);
-          }
-        },
+      handleOnScroll={({ nativeEvent }) => {
+        setCloseToBottom(isCloseToBottom(nativeEvent));
       }}
     />
   );

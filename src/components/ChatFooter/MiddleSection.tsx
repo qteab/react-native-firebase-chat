@@ -12,13 +12,13 @@ type Props = {
   newMessagesBannerStyles?: StyleProp<ViewStyle>;
   onNewMessagesBannerPress?: () => void;
 
-  closeToTop: boolean;
+  closeToBottom: boolean;
   hasNewMessages: boolean;
 };
 
 export const MiddleSection = (props: Props) => {
   const shouldDisplayNewMessagesBanner =
-    !props.closeToTop && props.hasNewMessages;
+    !props.closeToBottom && props.hasNewMessages;
 
   return (
     <View style={styles.container}>

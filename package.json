@@ -53,12 +53,13 @@
     "access": "public"
   },
   "devDependencies": {
-    "@commitlint/config-conventional": "^17.0.2",
+    "@commitlint/config-angular": "^17.0.2",
     "@evilmartians/lefthook": "^1.2.2",
     "@react-native-community/eslint-config": "^3.0.2",
     "@react-native-firebase/app": "^22.0.0",
     "@react-native-firebase/firestore": "^22.0.0",
     "@release-it/conventional-changelog": "^5.0.0",
+    "@shopify/flash-list": "^2.0.1",
     "@types/jest": "^28.1.2",
     "@types/react": "18.2.0",
     "commitlint": "^17.0.2",
@@ -83,7 +84,8 @@
     "@react-native-firebase/app": "^22.0.0",
     "@react-native-firebase/firestore": "^22.0.0",
     "react": "*",
-    "react-native": "*"
+    "react-native": "*",
+    "@shopify/flash-list": "^2.0.1"
   },
   "engines": {
     "node": ">= 16.0.0"
@@ -97,7 +99,7 @@
   },
   "commitlint": {
     "extends": [
-      "@commitlint/config-conventional"
+      "@commitlint/config-angular"
     ]
   },
   "release-it": {
@@ -162,6 +164,6 @@
     ]
   },
   "dependencies": {
-    "react-native-gifted-chat": "^2.1.0"
+    "react-native-gifted-chat": "npm:@qte/react-native-gifted-chat@^2.7.14"
   }
 }

@@ -34,25 +34,13 @@ export const docToMessage = async (
   const image = files?.docs[0]?.data().url;
 
   // Fetch user data from reference
-  if (sender) {
-    return {
-      _id: document.id,
-      createdAt: new Date(data.createdAt),
-      text: data.content,
-      user: { _id: data.senderId, ...sender },
-      image: image,
-      readByIds: data.readByIds,
-      metadata: data.metadata,
-    };
-  } else {
-    return {
-      _id: document.id,
-      createdAt: new Date(data.createdAt),
-      text: data.content,
-      image: image,
-      system: true,
-      readByIds: data.readByIds,
-      metadata: data.metadata,
-    };
-  }
+  return {
+    _id: document.id,
+    createdAt: new Date(data.createdAt),
+    text: data.content,
+    user: { _id: data.senderId, ...sender },
+    image: image,
+    readByIds: data.readByIds,
+    metadata: data.metadata,
+  };
 };
