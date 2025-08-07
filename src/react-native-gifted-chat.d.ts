@@ -5,7 +5,7 @@ declare module 'react-native-gifted-chat' {
     _id: string | number;
     text: string;
     createdAt: Date | number;
-    user: User;
+    user?: User;
     image?: string;
     video?: string;
     audio?: string;

@@ -164,6 +164,6 @@
     ]
   },
   "dependencies": {
-    "react-native-gifted-chat": "npm:@qte/react-native-gifted-chat@^2.7.14"
+    "react-native-gifted-chat": "npm:@qte/react-native-gifted-chat@^2.7.15"
   }
 }
