@@ -1,4 +1,5 @@
 import {
+  addDoc,
   arrayUnion,
   collection,
   doc,
@@ -11,6 +12,7 @@ import {
   orderBy,
   query,
   startAfter,
+  updateDoc,
 } from '@react-native-firebase/firestore';
 import { FlashListRef } from '@shopify/flash-list';
 import React, {
@@ -115,7 +117,7 @@ export const CuteChat = React.forwardRef<CuteChatRef, CuteChatProps>(function (
       }
 
       const chatRef = doc(getFirestore(), `chats/${chatId}`);
-      const chatData = await chatRef.get();
+      const chatData = await getDoc(chatRef);
       const chat = chatData.data();
 
       if (!chat) {
@@ -123,7 +125,7 @@ export const CuteChat = React.forwardRef<CuteChatRef, CuteChatProps>(function (
       }
 
       if (!chat.lastMessage.readByIds.includes(memoizedUser._id)) {
-        chatRef.update({
+        updateDoc(chatRef, {
           'lastMessage.readByIds': arrayUnion(memoizedUser._id),
         });
       }
@@ -234,13 +236,13 @@ export const CuteChat = React.forwardRef<CuteChatRef, CuteChatProps>(function (
       }
 
       try {
-        const messageRef = collection(
-          getFirestore(),
-          `chats/${chatId}/messages`
-        ).add(messageData);
+        const messageRef = await addDoc(
+          collection(getFirestore(), `chats/${chatId}/messages`),
+          messageData
+        );
 
         // Update lastMessage field in the chat document
-        doc(getFirestore(), `chats/${chatId}`).update({
+        updateDoc(doc(getFirestore(), `chats/${chatId}`), {
           lastMessage: messageRef,
           updatedAt: updatedAtIso,
         });
